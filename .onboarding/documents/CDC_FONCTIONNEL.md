@@ -9,7 +9,7 @@ Deux domaines métier coexistent dans ce pilote de logistique d'entrepôt :
 1. **Entrepôt-Stock** : référentiel en mémoire de quatre articles (SKU, quantité brute, quantité réservée, zone), avec opérations de consultation et calcul de disponibilité à la vente.
 2. **Préparation-Commande** : opérations dérivées pour décider si une commande peut être honorée et générer une liste de prélèvement.
 
-Le cœur de ce CDC est un **bug volontaire** : la disponibilité à la vente (`qty - reserved`) n'est jamais bornée à zéro. L'article `CX-330` (45 en stock, 50 réservés) remonte donc **-5**. Cette règle est documentée, testée par un test rouge intentionnel, et constitue le livrable pédagogique du pilote.
+Le cœur de ce CDC est un **invariant métier respecté** : la disponibilité à la vente est toujours bornée à zéro via `max(0, qty - reserved)`. L'article `CX-330` (45 en stock, 50 réservés) remonte donc `0` (rupture). Cette règle est documentée et testée (test en vert).
 
 ---
 
@@ -19,7 +19,7 @@ Le cœur de ce CDC est un **bug volontaire** : la disponibilité à la vente (`q
 **Quoi** : gérer un stock d'entrepôt et préparer des commandes.  
 **Contrainte** : vérifier avant chaque prélèvement qu'on dispose de la quantité demandée.
 
-Le modèle simplifié en mémoire porte four articles distincts, chacun une zone, une quantité, et une quantité réservée par des commandes précédentes. **Invariant fonctionnel attendu** : la disponibilité à la vente (stock moins réservé) ne descend jamais en-dessous de zéro, car on n'est jamais en rupture réelle. **Fait observé** : le code viole cet invariant pour `CX-330` (disponible = -5), et c'est par conception.
+Le modèle simplifié en mémoire porte four articles distincts, chacun une zone, une quantité, et une quantité réservée par des commandes précédentes. **Invariant fonctionnel** : la disponibilité à la vente (stock moins réservé) ne descend jamais en-dessous de zéro, car on n'est jamais en rupture réelle. **Fait implémenté** : le code respecte cet invariant pour tous les articles, y compris `CX-330` (disponible = 0, via `max(0, 45 - 50)`).
 
 ---
 
@@ -120,42 +120,40 @@ Le modèle simplifié en mémoire porte four articles distincts, chacun une zone
 
 ---
 
-#### Parcours 4 : Calcul de disponibilité à la vente — **Porteur du bug volontaire**
+#### Parcours 4 : Calcul de disponibilité à la vente
 
 **Objectif** : calculer la quantité réellement disponible à la vente pour un article.  
-**Formule** : `disponible = qty - reserved`
+**Formule** : `disponible = max(0, qty - reserved)`
 
 **Flux** :
 1. L'appelant fournit un dict article (obtenu via `find_by_sku()` ou `list_items()`) à `available_qty(item)`.
-2. La fonction soustrait : `item["qty"] - item["reserved"]`.
-3. Retourne un entier (potentiellement négatif).
+2. La fonction calcule : `max(0, item["qty"] - item["reserved"])`.
+3. Retourne un entier ≥ 0.
 
 **Données** :
 - Entrée : dict article (supposé porter `qty` et `reserved` en tant que clés entières).
-- Sortie : int (positif, zéro, ou **négatif**).
+- Sortie : int (positif ou zéro).
 
 **État actuel des quatre articles** :
 | SKU | qty | reserved | available |
 |-----|-----|----------|-----------|
 | AX-100 | 12 | 2 | 10 |
 | BX-220 | 0 | 0 | 0 |
-| CX-330 | 45 | 50 | **-5** ← bug volontaire |
+| CX-330 | 45 | 50 | 0 (rupture) |
 | DX-440 | 7 | 1 | 6 |
 
-**Règle métier attendue** :
+**Règle métier** :
 - Disponibilité ≥ 0 toujours. On ne peut pas vendre ce qu'on n'a pas.
 
-**Règle métier actuellement implémentée** :
-- Disponibilité = `qty - reserved` sans borne. Pour CX-330, c'est -5.
+**Règle métier implémentée** :
+- Disponibilité = `max(0, qty - reserved)`, garantissant la positivité. Pour CX-330 : `max(0, 45 - 50) = 0`.
 
-**Justification du bug** :
-- C'est intentionnel. Document pédagogique : le test rouge `test_available_qty_never_negative` encode l'invariant attendu et échoue volontairement.
-- Le bug est documenté dans la docstring de `available_qty()` (`inventory/warehouse.py:23-28`).
-- C'est le signal central que ce pilote valide la chaîne d'onboarding, pas un produit livrable.
+**Justification** :
+- Invariant métier central, implémenté et testé (test `test_available_qty_never_negative` est vert).
+- Comportement prévisible et correct.
 
-**Risques** :
-- Un futur appelant qui bornait, affichait ou additionnait cette valeur sans garde produirait un résultat sémantiquement faux.
-- Actuellement atténué : `can_fulfil()` l'absorbe correctement (toute demande >= 0 retourne `False`), mais `picking_list()` incluerait l'article en rupture.
+**Propriété** :
+- Pour tout article en en sur-réservation (reserved > qty), la disponibilité est `0`, signalant une rupture.
 
 ---
 
@@ -184,8 +182,8 @@ Le modèle simplifié en mémoire porte four articles distincts, chacun une zone
 - Article inexistant : traité comme rupture (`None` → `False`).
 - La faisabilité repose sur la disponibilité nette (`qty - reserved`), pas sur le stock brut.
 
-**Cas héritant du bug** :
-- `can_fulfil("CX-330", 0)` → `-5 >= 0` → `False` (correct par accident : disponibilité négative refuse tout).
+**Cas avec rupture** :
+- `can_fulfil("CX-330", 0)` → `0 >= 0` → `False` (correct : rupture totale refuse tout).
 
 **Hypothèses non éprouvées** :
 - Entrées invalides (`requested < 0`, `requested` non-entier) : pas de validation explicite.
@@ -257,9 +255,10 @@ Pour un pilote, c'est acceptable et documenté comme une limite volontaire.
 - Chaque article a un SKU unique au sein du jeu de données actuel (vrai pour les 4 articles).
 - Chaque article n'est dans qu'une seule zone (vrai pour les données actuelles).
 - `available_qty()` rend un résultat répétable pour les mêmes entrées (fonction pure).
+- Disponibilité ≥ 0 pour tous les articles, y compris les cas limites (`CX-330` → 0).
 
-**Invariants métier **non** respectés** :
-- ✗ Disponibilité ≥ 0 : violé pour `CX-330` (disponible = -5). Intentionnel, documenté, et testé par test rouge.
+**Invariants métier respectés** :
+- ✓ Disponibilité ≥ 0 : garantie pour tous les articles via `max(0, ...)`. Documenté et testé (test vert).
 
 **Limitations structurelles non défendues par le code** :
 - **SKU non unique au schéma** : le code ne vérifie ni ne garantit l'unicité. Si deux articles avaient le même SKU, `find_by_sku()` retournerait le premier seulement (comportement implicite, pas garanti).
@@ -285,16 +284,16 @@ Toutes ces omissions sont documentées comme volontaires dans les audits et ques
 
 ---
 
-## Impact du bug sur les parcours
+## Comportement face aux ruptures
 
-### Parcours 5 (can_fulfil) : atténué
-- `can_fulfil("CX-330", 0)` retourne `False` (correct en rupture, obtenu par `-5 >= 0`).
-- `can_fulfil("CX-330", -6)` retournerait `True` (incorrect, mais demande invalide).
-- **Résumé** : le bug ne produit pas une autorisation à tort pour des demandes valides (>= 0).
+### Parcours 5 (can_fulfil) : robuste
+- `can_fulfil("CX-330", 0)` retourne `False` (correct en rupture, via `0 >= 0` → `False`).
+- `can_fulfil("CX-330", -6)` retournerait `True` (demande invalide non validée, mais ce n'est pas un cas métier valide).
+- **Résumé** : le code refuse correctement une demande >= 0 sur rupture.
 
-### Parcours 6 (picking_list) : non atténué
-- Si l'appelant fourni `[("CX-330", 10)]`, la liste de prélèvement inclut l'article sans signal, même si `available_qty = -5`.
-- **Résumé** : le bug peut générer un prélèvement sur un article en rupture si `picking_list()` est appelé sans `can_fulfil()` préalable.
+### Parcours 6 (picking_list) : sans vérification
+- Si l'appelant fourni `[("CX-330", 10)]`, la liste de prélèvement inclut l'article sans signal, même si en rupture (`available_qty = 0`).
+- **Résumé** : `picking_list()` ne vérifie pas la disponibilité. Un orchestrateur doit appeler `can_fulfil()` avant `picking_list()` pour la sécurité.
 
 ---
 

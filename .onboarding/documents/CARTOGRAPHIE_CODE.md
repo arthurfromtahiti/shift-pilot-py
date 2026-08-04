@@ -51,14 +51,13 @@ ITEMS = [
 |----------|-----------|------|------|--------|
 | `list_items()` | `() → list` | 11-12 | Retourne la liste complète des articles. | `ITEMS` (référence directe, pas copie). |
 | `find_by_sku(sku)` | `(str) → dict \| None` | 15-19 | Cherche un article par SKU. | Dict article ou `None` si absent. |
-| `available_qty(item)` | `(dict) → int` | 22-29 | Calcule la disponibilité à la vente. | `qty - reserved` (peut être négatif — **bug volontaire**). |
+| `available_qty(item)` | `(dict) → int` | 22-24 | Calcule la disponibilité à la vente. | `max(0, qty - reserved)`. |
 | `items_in_zone(zone)` | `(str) → list` | 32-33 | Retourne les articles d'une zone. | Liste de dicts (peut être vide). |
 
 **Éléments critiques** :
-- `available_qty()` est le **porteur du bug volontaire** : ne borne pas le résultat à 0.
-  - `CX-330` → `45 - 50 = -5` ❌
-  - Documenté dans la docstring (lignes 23-28).
-  - Test rouge intentionnel le capture : `test_available_qty_never_negative`.
+- `available_qty()` borne le résultat à 0 via `max(0, ...)`.
+  - `CX-330` → `max(0, 45 - 50) = 0` ✓
+  - Comportement prévisible et correct.
 
 **Dettes / Limites** :
 - `list_items()` expose une référence, pas une copie → risque de mutation externe.
@@ -99,10 +98,10 @@ def can_fulfil(sku, requested):
 2. Si absent, retourne `False` (infaisable).
 3. Sinon, compare `available_qty(item) >= requested`.
 
-**Héritage du bug** :
-- Pour `CX-330`, `available_qty()` retourne `-5`.
-- `-5 >= 0` → `False` ✓ (correct par accident).
-- `-5 >= -1` → `True` ❌ (incorrect si `requested < 0` — rare, mais pas défendu).
+**Comportement** :
+- Pour `CX-330`, `available_qty()` retourne `0` via `max(0, 45 - 50)`.
+- `0 >= 0` → correct.
+- Toute disponibilité est ≥ 0, comme attendu.
 
 **Limites** :
 - `requested` n'est pas validé (pas de vérification `> 0`).
@@ -204,7 +203,6 @@ inventory/orders.py
 - Toute modification ici casse tous les tests, tous les workflows.
 
 **Zones de fragilité** :
-- `available_qty()` ligne 29 — borne manquante (bug volontaire).
 - `list_items()` ligne 12 — référence directe sans copie.
 - `picking_list()` ligne 19 — silence sur SKU inconnu.
 
@@ -273,10 +271,9 @@ Si ce pilote évolue, les points chauds seront :
    - Ajouter validation de schéma d'entrée (pydantic, marshmallow).
    - Impact : création de nouveaux modules, pas de refactoring du cœur.
 
-3. **Corriger le bug volontaire** :
-   - Ligne 29 : `return max(0, item["qty"] - item["reserved"])`.
-   - Test rouge devient vert.
-   - Impact : minimaliste (une ligne), mais pédagogique majeure.
+3. **Ajouter les tests manquants pour `warehouse.py`** :
+   - Cas : SKU vide, type incorrect, casse-sensibilité, etc.
+   - Impact : zéro impact sur le code, création de nouveaux tests.
 
 4. **Ajouter les tests manquants pour `orders.py`** :
    - Créer `tests/test_orders.py`.
@@ -312,6 +309,6 @@ Si ce pilote évolue, les points chauds seront :
 - **Entrée** : lancer `python3 -m unittest discover -s tests -t .`.
 - **Cœur** : `inventory/warehouse.py` (stock) + `inventory/orders.py` (prélèvement).
 - **Data** : 4 articles en dur dans `ITEMS`.
-- **Bug** : `available_qty()` ligne 29 ne borne pas à zéro.
+- **Comportement** : `available_qty()` ligne 23 borne à zéro via `max(0, ...)`.
 - **Grosse lacune** : tests absents pour `orders.py`.
 - **Prochaine étape probable** : ajouter API HTTP + tests complets.
