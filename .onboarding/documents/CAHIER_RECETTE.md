@@ -6,7 +6,7 @@
 
 Ce cahier de recette énumère les cas de test **dérivés directement des workflows métier** documentés en étape 2. Chaque cas est tracé à un workflow, à une fonction code, et à un objectif métier. Le but est de guider la création d'une suite de test complète couvrant tous les domaines.
 
-**État actuel** : 3 tests existent dans `tests/test_warehouse.py` (2 verts, 1 rouge intentionnel). Tous les cas du domaine `préparation-commande` sont **non testés**.
+**État actuel** : 3 tests existent dans `tests/test_warehouse.py` (tous verts). Tous les cas du domaine `préparation-commande` sont **non testés**.
 
 ---
 
@@ -15,8 +15,7 @@ Ce cahier de recette énumère les cas de test **dérivés directement des workf
 Pour chaque workflow :
 1. **Cas nominal** : le parcours heureux.
 2. **Cas limites** : valeurs frontières, entrées vides, SKU inconnus, etc.
-3. **Cas dégradés** : comportements attendus sous bug volontaire.
-4. **État de l'implémentation** : ✓ testé, ✗ non testé, ⚠ partiellement testé.
+3. **État de l'implémentation** : ✓ testé, ✗ non testé, ⚠ partiellement testé.
 
 ---
 
@@ -83,14 +82,14 @@ Pour chaque workflow :
 
 ---
 
-### 1.4 — Calcul de disponibilité à la vente (porteur du bug volontaire)
+### 1.4 — Calcul de disponibilité à la vente
 
 **Objectif métier** : connaître la quantité réellement vendable (stock brut - réservé).
 
 **Fonction** : `available_qty(item)`
 
-**Règle métier attendue** : disponibilité ≥ 0 toujours.  
-**Règle implémentée** : disponibilité = qty - reserved (pas de borne).
+**Règle métier** : disponibilité ≥ 0 toujours.  
+**Règle implémentée** : disponibilité = max(0, qty - reserved).
 
 **Cas de test** :
 
@@ -98,14 +97,13 @@ Pour chaque workflow :
 |---|-----|--------|------------------|---|--------|
 | 1.4.a | Article normal (AX-100, qty=12, reserved=2) | `available_qty(find_by_sku("AX-100"))` | Retourne 10 | Retourne 10 ✓ | ✗ Non testé |
 | 1.4.b | Article en rupture totale (BX-220, qty=0, reserved=0) | `available_qty(find_by_sku("BX-220"))` | Retourne 0 | Retourne 0 ✓ | ✗ Non testé |
-| 1.4.c | Article bugué (CX-330, qty=45, reserved=50) | `available_qty(find_by_sku("CX-330"))` | **Devrait retourner 0** (rupture) | **Retourne -5** ❌ | ❌ **Rouge intentionnel** (`test_available_qty_never_negative`) |
+| 1.4.c | Article en sur-réservation (CX-330, qty=45, reserved=50) | `available_qty(find_by_sku("CX-330"))` | Retourne 0 (rupture) | Retourne 0 ✓ | ✓ **Vert** (`test_available_qty_never_negative`) |
 | 1.4.d | Article avec petite marge (DX-440, qty=7, reserved=1) | `available_qty(find_by_sku("DX-440"))` | Retourne 6 | Retourne 6 ✓ | ✗ Non testé |
 | 1.4.e | Entrée `None` (robustesse) | `available_qty(None)` | Pas d'attente définie — entrée invalide | Lève `TypeError: 'NoneType' object is not subscriptable` sur accès `item["qty"]` | ✗ Non testé (robustesse) |
 | 1.4.f | Dict malformé (clé `qty` manquante) | `available_qty({"sku": "XX", "reserved": 0})` | Pas d'attente définie — schéma invalide | Lève `KeyError: 'qty'` lors du calcul | ✗ Non testé (robustesse) |
 
-**Résumé du bug** :
-- Test rouge existant encode l'invariant attendu (`disponible >= 0`).
-- Le bug est volontaire, documenté, et pédagogique.
+**Résumé** :
+- L'invariant métier (`disponible >= 0`) est maintenant implémenté et testé en vert.
 
 ---
 
@@ -137,12 +135,12 @@ Pour chaque workflow :
 | 2.2.b | SKU vide | "" | 5 | `False` | Idem. |
 | 2.2.c | SKU nul (robustesse) | None | 5 | Pas d'attente définie | Code : `find_by_sku(None)` retourne `None`, `can_fulfil()` teste `if item is None` et retourne `False` (`inventory/orders.py:8-9`). Entrée invalide, comportement sûr. |
 
-### 2.3 — Héritage du bug (disponibilité négative)
+### 2.3 — Comportement avec rupture
 
-| # | Cas | SKU | Quantité | Disponibilité | Attente métier | Réalité code | Problème |
+| # | Cas | SKU | Quantité | Disponibilité | Attente métier | Réalité code | État |
 |---|-----|-----|----------|---|---|---|---|
-| 2.3.a | Article bugué, demande valide | CX-330 | 0 | -5 | `False` (rupture) | `-5 >= 0` → `False` ✓ | Aucun (correct par accident). |
-| 2.3.b | Article bugué, demande invalide | CX-330 | -6 | -5 | `False` (refus ou rupture) | `-5 >= -6` → `True` ❌ | **Incorrect** : accepte une demande invalide. |
+| 2.3.a | Article en sur-réservation, demande valide | CX-330 | 0 | 0 | `False` (rupture) | `0 >= 0` → `False` ✓ | Correct. |
+| 2.3.b | Article en sur-réservation, demande négative | CX-330 | -6 | 0 | `False` (refus ou rupture) | `0 >= -6` → `True` ❌ | Demande invalide non validée. |
 
 ### 2.4 — Cas de robustesse (non testés)
 
@@ -182,12 +180,12 @@ Pour chaque workflow :
 | 3.2.d | Quantité zéro | `[("AX-100", 0)]` | `[{sku: "AX-100", zone: "A", qty: 0}]` | Pas de validation : inclut la quantité, même si zéro. |
 | 3.2.e | Quantité négative | `[("AX-100", -1)]` | `[{sku: "AX-100", zone: "A", qty: -1}]` | Pas de validation : inclut la quantité, même si négative. |
 
-### 3.3 — Interaction avec le bug (disponibilité négative)
+### 3.3 — Interaction avec les ruptures
 
-| # | Cas | Entrée | Disponibilité réelle | Attente métier | Réalité code | Problème |
+| # | Cas | Entrée | Disponibilité réelle | Attente métier | Réalité code | État |
 |---|-----|--------|---|---|---|---|
-| 3.3.a | Article bugué, sans `can_fulfil` préalable | `[("CX-330", 10)]` | -5 | Devrait refuser ou signaler | `{sku: "CX-330", zone: "A", qty: 10}` | ❌ **Grave** : prélèvement sur rupture, silencieux. |
-| 3.3.b | Article bugué, avec `can_fulfil` validant | `can_fulfil("CX-330", 0)` retourne `False`, donc pas d'appel à `picking_list` | -5 | Aucune liste générée | N/A | L'orchestrateur doit enchaîner les deux (pas implémenté). |
+| 3.3.a | Article en rupture, sans `can_fulfil` préalable | `[("CX-330", 10)]` | 0 | Devrait refuser ou signaler | `{sku: "CX-330", zone: "A", qty: 10}` | ⚠️ Pas de vérification implicite : fonction génère liste sans validation. |
+| 3.3.b | Article en rupture, avec `can_fulfil` validant | `can_fulfil("CX-330", 0)` retourne `False`, donc pas d'appel à `picking_list` | 0 | Aucune liste générée | N/A | L'orchestrateur doit enchaîner les deux (pas implémenté). |
 
 ### 3.4 — Cas de robustesse (exploration défensive du code, non testés)
 
@@ -215,19 +213,15 @@ Pour chaque workflow :
 
 ---
 
-## Traçabilité bug volontaire
+## Traçabilité du calcul de disponibilité
 
-**Bug** : `available_qty()` ne borne pas à zéro.
+**Comportement** : `available_qty()` borne le résultat à zéro via `max(0, qty - reserved)`.
 
 **Traces** :
-- Implémentation : `inventory/warehouse.py:29` (`return item["qty"] - item["reserved"]`).
-- Documentation : docstring lignes 23-28.
-- Test rouge : `tests/test_warehouse.py:14-18` (`test_available_qty_never_negative`).
-- Cahier de recette : cas 1.4.c, 2.3.a, 2.3.b, 3.3.a.
-- README : ligne 13-14.
-- Carte des domaines : mentionné.
+- Implémentation : `inventory/warehouse.py:23` (`return max(0, item["qty"] - item["reserved"])`).
+- Test : `tests/test_warehouse.py:14-18` (`test_available_qty_never_negative`) — ✓ Vert.
 
-**Correction attendue** : l'implémentation qui corrige le bug fera passer le test rouge au vert.
+**Propriété invariante** : `available_qty(item)` retourne toujours une valeur ≥ 0.
 
 ---
 
@@ -245,7 +239,7 @@ ITEMS = [
 ```
 
 **Disponibilités calculées** :
-- AX-100 : 12 - 2 = 10
-- BX-220 : 0 - 0 = 0
-- CX-330 : 45 - 50 = -5 (bug)
-- DX-440 : 7 - 1 = 6
+- AX-100 : max(0, 12 - 2) = 10
+- BX-220 : max(0, 0 - 0) = 0
+- CX-330 : max(0, 45 - 50) = 0
+- DX-440 : max(0, 7 - 1) = 6
