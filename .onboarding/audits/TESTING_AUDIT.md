@@ -4,11 +4,11 @@
 
 ## Compréhension globale
 
-La suite de tests est composée d'un seul fichier (`tests/test_warehouse.py`, 22 lignes), trois méthodes de test, et s'appuie sur le module `unittest` de la bibliothèque standard Python. Elle ne couvre que le module `inventory/warehouse.py` — le module `inventory/orders.py` est entièrement absent de la couverture. Le projet ne dispose d'aucun outil de mesure de couverture configuré et d'aucune intégration continue localisée.
+La suite de tests est composée de deux fichiers (`tests/test_warehouse.py`, 22 lignes ; `tests/test_orders.py`, 15 lignes), quatre méthodes de test au total, et s'appuie sur le module `unittest` de la bibliothèque standard Python. Elle couvre le module `inventory/warehouse.py` (trois tests) et commence à couvrir `inventory/orders.py` (un test). Le projet ne dispose d'aucun outil de mesure de couverture configuré et d'aucune intégration continue localisée.
 
 ## Résumé exécutif
 
-Trois tests, un rouge volontaire, zéro couverture de `orders.py`. La qualité des trois tests existants est correcte pour leur périmètre : ils couvrent les cas nominaux de `find_by_sku()`, `items_in_zone()`, et encodent précisément l'invariant violé par le bug dans `available_qty()`. La dette de test majeure est l'absence totale de couverture pour `can_fulfil()` et `picking_list()` — les deux fonctions qui portent la logique de décision commerciale. Il n'existe ni CI, ni configuration de coverage, ni lint. Les `__pycache__/` ne sont pas ignorés par git (absence de `.gitignore`).
+Quatre tests total : trois sur `warehouse.py` (un rouge volontaire), un sur `orders.py`. La qualité des tests existants est correcte pour leur périmètre : ils couvrent les cas nominaux et un cas critique de disponibilité insuffisante. Le test `test_article_hors_stock_exclu` valide que `picking_list` exclut correctement les articles non disponibles. La couverture de `orders.py` reste partielle — seul `picking_list` avec indisponibilité est testé — et `can_fulfil()` n'a aucun test. Il n'existe ni CI, ni configuration de coverage, ni lint. Les `__pycache__/` ne sont pas ignorés par git (absence de `.gitignore`).
 
 ## Constats détaillés
 
@@ -23,6 +23,8 @@ Trois tests, un rouge volontaire, zéro couverture de `orders.py`. La qualité d
 **VÉRIFIÉ_CODE — `inventory/orders.py` : aucun test.** `tests/test_warehouse.py` n'importe pas `inventory.orders` (vérifié : `from inventory.warehouse import …` uniquement, `tests/test_warehouse.py:3`). Les fonctions `can_fulfil()` et `picking_list()` n'ont aucun test de quelque nature que ce soit.
 
 **VÉRIFIÉ_CODE — Aucune CI localisée.** Aucun fichier `.github/`, `.gitlab-ci.yml`, `Makefile`, `tox.ini`, `.circleci/` n'est présent dans le dépôt (inventaire complet effectué). Les tests doivent être lancés manuellement.
+
+**VÉRIFIÉ_CODE — Nouveau test sur `orders.py` : `test_article_hors_stock_exclu`.** `tests/test_orders.py` contient une classe `TestPickingList` avec une méthode `test_article_hors_stock_exclu` (`tests/test_orders.py:6-10`). Ce test valide que `picking_list([("BX-220", 1)])` retourne une liste vide, vérifiant que les articles sans disponibilité suffisante sont exclus de la liste de prélèvement.
 
 **VÉRIFIÉ_CODE — Aucune configuration de couverture.** Pas de `.coveragerc`, `pytest.ini`, `setup.cfg` ni équivalent. Aucun outil de mesure de couverture (`coverage.py`, `pytest-cov`) n'est configuré.
 
@@ -43,20 +45,21 @@ Trois tests, un rouge volontaire, zéro couverture de `orders.py`. La qualité d
 
 ## Zones critiques
 
-- **Absence de tests sur `orders.py`** — C'est la zone de risque principale. `can_fulfil()` est une décision commerciale binaire ; `picking_list()` produit des instructions physiques. Tous deux sont non testés.
+- **Couverture incomplète de `orders.py`** — `picking_list()` a désormais un premier test (exclusion sur indisponibilité) mais reste partiellement couverte. `can_fulfil()` est une décision commerciale binaire mais reste entièrement non testé.
 
 ## Risques
 
-- **VÉRIFIÉ_CODE — `can_fulfil()` et `picking_list()` sans aucun test.** `tests/test_warehouse.py` n'importe pas `inventory.orders` (`tests/test_warehouse.py:3`) ; les deux fonctions n'ont aucune couverture de quelque nature que ce soit. HYPOTHÈSE : toute modification de `available_qty()` ou de `can_fulfil()` peut introduire une régression non détectée ; tout refactoring de `picking_list()` est un saut dans l'inconnu faute de spécification par des tests.
-- **VÉRIFIÉ_CODE — Comportement de `picking_list()` non spécifié.** Aucun test ne documente le comportement attendu sur liste vide, SKU inconnu ou entrée mal formée. HYPOTHÈSE : en l'absence de tests, un refactoring de `picking_list()` ne peut pas distinguer un comportement intentionnel d'une régression.
+- **VÉRIFIÉ_CODE — `can_fulfil()` et couverture partielle de `picking_list()`.** `tests/test_orders.py` importe `picking_list` et teste un cas (article hors stock) ; `can_fulfil()` reste entièrement non testé. HYPOTHÈSE : toute modification de `can_fulfil()` peut introduire une régression non détectée ; le comportement de `picking_list()` sur liste vide, SKU inconnu seul, ou articles mixtes est toujours non spécifié.
+- **VÉRIFIÉ_CODE — Comportement de `picking_list()` partiellement spécifié.** Un seul test (`test_article_hors_stock_exclu`) documente un cas (article sans disponibilité sufisante). Le comportement sur liste vide, SKU inconnu seul, ou ordre de zones multiples n'est pas testé. HYPOTHÈSE : en l'absence de couverture complète, un refactoring de `picking_list()` ne peut pas distinguer un comportement intentionnel d'une régression.
 - **HYPOTHÈSE — Confusion d'environnement Python.** Les `.pyc` en cache sont compilés pour Python 3.13 (`inventory/__pycache__/__init__.cpython-313.pyc`) alors que la carte des domaines documente Python 3.12. Si les deux versions co-existent, des comportements subtils peuvent différer. `INCONNU` : la version réellement utilisée pour les tests n'est pas vérifiable sans exécution.
 
 ## Recommandations priorisées
 
-1. **Créer `tests/test_orders.py` avec des tests pour `can_fulfil()` et `picking_list()`** — Cas minimaux : SKU connu/inconnu, `requested` positif/nul/négatif, liste vide, SKU mixte connu-inconnu dans `picking_list()`, comportement du bug sur `CX-330` dans `can_fulfil()`.
-2. **Compléter `test_items_in_zone()`** — Ajouter les assertions sur les identités des articles retournés, le cas d'une zone inexistante (liste vide), et optionnellement la zone B (0 article).
-3. **Ajouter un `.gitignore`** — Exclure `__pycache__/`, `*.pyc`, `*.pyo` pour éviter de tracer des artefacts de build.
-4. **Configurer une CI minimale** — Un workflow GitHub Actions ou GitLab CI en 5 lignes suffit à lancer `python3 -m unittest discover -s tests -t .` à chaque push.
+1. **Étendre les tests de `picking_list()` dans `tests/test_orders.py`** — Ajouter des cas : liste vide, SKU inconnu, SKU disponible (nominal), SKU mixte (connu disponible + connu indisponible + inconnu), ordre de zones.
+2. **Créer des tests pour `can_fulfil()`** — Cas minimaux : SKU connu/inconnu, quantité demandée positive/zéro/négative, comportement du bug sur `CX-330`.
+3. **Compléter `test_items_in_zone()`** — Ajouter les assertions sur les identités des articles retournés, le cas d'une zone inexistante (liste vide), et optionnellement la zone B (0 article).
+4. **Ajouter un `.gitignore`** — Exclure `__pycache__/`, `*.pyc`, `*.pyo` pour éviter de tracer des artefacts de build.
+5. **Configurer une CI minimale** — Un workflow GitHub Actions ou GitLab CI en 5 lignes suffit à lancer `python3 -m unittest discover -s tests -t .` à chaque push.
 
 ## Questions ouvertes
 
