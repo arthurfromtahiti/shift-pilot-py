@@ -11,11 +11,14 @@ def can_fulfil(sku, requested):
 
 
 def picking_list(lines):
-    """Transforme des lignes de commande en liste de prélèvement."""
+    """Transforme des lignes de commande en liste de prélèvement.
+
+    Exclut silencieusement les lignes dont la disponibilité est insuffisante.
+    """
     out = []
     for sku, qty in lines:
-        item = find_by_sku(sku)
-        if item is None:
+        if not can_fulfil(sku, qty):
             continue
+        item = find_by_sku(sku)
         out.append({"sku": sku, "zone": item["zone"], "qty": qty})
     return sorted(out, key=lambda entry: entry["zone"])
