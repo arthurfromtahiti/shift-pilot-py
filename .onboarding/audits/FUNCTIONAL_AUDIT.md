@@ -29,7 +29,7 @@ Le code est cohérent avec les workflows documentés — chaque comportement dé
 ## Forces
 
 - **Cohérence code-workflow : totale.** Les trois workflows documentés correspondent précisément au code lu. Aucun écart entre description et implémentation.
-- **Bug volontaire traçable de bout en bout.** `CX-330` est identifié dans les données, documenté dans la docstring, capturé par un test rouge, documenté dans les workflows et la carte des domaines. C'est le livrable pédagogique le plus complet du pilote.
+- **Invariant métier traçable de bout en bout.** `CX-330` est identifié dans les données avec disponibilité négative (qty=45, reserved=50), géré correctement par `available_qty()` qui retourne `max(0, ...)`, validé par un test vert (`test_available_qty_never_negative`), et documenté dans les workflows et la carte des domaines. C'est une démonstration complète d'un invariant métier et de sa validation.
 - **Séparation fonctionnelle claire.** Le stock (lecture pure) et la préparation de commande (logique dérivée) sont deux modules distincts avec des responsabilités non mélangées.
 
 ## Dettes techniques

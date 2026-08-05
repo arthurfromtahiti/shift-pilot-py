@@ -12,15 +12,15 @@ Quatre tests total : trois sur `warehouse.py` (un rouge volontaire), un sur `ord
 
 ## Constats détaillés
 
-**VÉRIFIÉ_CODE — Suite de tests : un fichier, trois méthodes.** `tests/test_warehouse.py` contient une classe `TestWarehouse` avec trois méthodes (`test_find_by_sku`, `test_items_in_zone`, `test_available_qty_never_negative`) (`tests/test_warehouse.py:6-18`). La commande de lancement est documentée dans le README (`README.md:10`) ; l'exécution confirme 3 tests lancés, 1 échec attendu (`test_available_qty_never_negative`) et 2 succès.
+**VÉRIFIÉ_CODE — Suite de tests : deux fichiers, quatre méthodes.** `tests/test_warehouse.py` contient une classe `TestWarehouse` avec trois méthodes (`test_find_by_sku`, `test_items_in_zone`, `test_available_qty_never_negative`) ; `tests/test_orders.py` contient une classe `TestPickingList` avec une méthode (`test_article_hors_stock_exclu`) (`tests/test_warehouse.py:6-18`, `tests/test_orders.py:6-10`). La commande de lancement est documentée dans le README (`README.md:10`) ; l'exécution confirme 4 tests lancés, tous passants.
 
 **VÉRIFIÉ_CODE — `test_find_by_sku` : couverture partielle, cas nominal et absent.** Teste que `find_by_sku("AX-100")` retourne un résultat non nul, et que `find_by_sku("INEXISTANT")` retourne `None` (`tests/test_warehouse.py:7-9`). Cas couverts : SKU connu, SKU inconnu. Cas non couverts : SKU avec type incorrect (ex. `None`, entier), SKU partiel, sensibilité à la casse.
 
 **VÉRIFIÉ_CODE — `test_items_in_zone` : couverture minimale, assertion de comptage seulement.** Teste que `items_in_zone("A")` retourne 2 articles (`tests/test_warehouse.py:11-12`). Ne vérifie pas les identités des articles retournés, ni le cas d'une zone inexistante (devrait retourner une liste vide), ni le cas d'une zone à zéro article.
 
-**VÉRIFIÉ_CODE — `test_available_qty_never_negative` : test rouge volontaire, précis et intentionnel.** Teste que `available_qty(find_by_sku("CX-330"))` retourne `0` (`tests/test_warehouse.py:14-18`). Ce test échoue volontairement car `available_qty` retourne `-5`. C'est le seul test du projet qui encode un invariant métier (`disponible ≥ 0`) plutôt qu'un comportement actuel. Il sert de cible pédagogique et de signal que le bug n'est pas corrigé.
+**VÉRIFIÉ_CODE — `test_available_qty_never_negative` : test vert, validant le correctif CLA-177.** Teste que `available_qty(find_by_sku("CX-330"))` retourne `0` (`tests/test_warehouse.py:14-18`). Ce test PASSE car `available_qty()` retourne `max(0, 45-50) = 0`. Le correctif CLA-177 (`f3d4233`) a appliqué le `max(0, ...)` qui garantit une disponibilité jamais négative. Ce test encode un invariant métier (`disponible ≥ 0`) et vérifie que l'implémentation la respecte.
 
-**VÉRIFIÉ_CODE — `inventory/orders.py` : aucun test.** `tests/test_warehouse.py` n'importe pas `inventory.orders` (vérifié : `from inventory.warehouse import …` uniquement, `tests/test_warehouse.py:3`). Les fonctions `can_fulfil()` et `picking_list()` n'ont aucun test de quelque nature que ce soit.
+**VÉRIFIÉ_CODE — `inventory/orders.py` : test nouveau sur `picking_list`.** `tests/test_orders.py` contient un premier test sur `picking_list()` qui valide l'exclusion des articles indisponibles. `can_fulfil()` reste entièrement non testé (`inventory/orders.py:6-10`).
 
 **VÉRIFIÉ_CODE — Aucune CI localisée.** Aucun fichier `.github/`, `.gitlab-ci.yml`, `Makefile`, `tox.ini`, `.circleci/` n'est présent dans le dépôt (inventaire complet effectué). Les tests doivent être lancés manuellement.
 
@@ -32,7 +32,7 @@ Quatre tests total : trois sur `warehouse.py` (un rouge volontaire), un sur `ord
 
 ## Forces
 
-- **Test rouge précis et pédagogique.** `test_available_qty_never_negative` encode l'invariant métier violé et non le comportement bugué. C'est le bon niveau d'abstraction pour un test qui documente une intention. (`tests/test_warehouse.py:14-18`)
+- **Test vert validant l'invariant métier.** `test_available_qty_never_negative` encode l'invariant métier (`disponible ≥ 0`) et passe avec l'implémentation actuelle `max(0, ...)`. C'est le bon niveau d'abstraction pour un test qui documente une intention et valide qu'elle est respectée. (`tests/test_warehouse.py:14-18`)
 - **Tests organisés en classe `unittest`.** L'organisation en `TestCase` est correcte et permet l'extension sans refactoring structurel.
 - **Commande de lancement documentée dans le README.** `python3 -m unittest discover -s tests -t .` est explicite et reproductible. (`README.md:10`)
 
