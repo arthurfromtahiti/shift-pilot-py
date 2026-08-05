@@ -38,9 +38,9 @@ Quatre tests total : trois sur `warehouse.py` (un rouge volontaire), un sur `ord
 
 ## Dettes techniques
 
-- **Zéro test pour `can_fulfil()` et `picking_list()`.** Ce sont les deux fonctions à logique métier la plus complexe du projet, et elles n'ont aucun test. Cas critiques non couverts : SKU inconnu dans `can_fulfil()`, liste vide dans `picking_list()`, SKU inconnu silencieux dans `picking_list()`, bug de disponibilité négative propagé dans `can_fulfil()`. (`inventory/orders.py:6-21`)
+- **`can_fulfil()` entièrement non testée ; `picking_list()` partiellement couverte.** `can_fulfil()` reste entièrement non testée — SKU inconnu, quantité zéro, bug de disponibilité négative propagé ne sont vérifiés par aucun test. `picking_list()` n'est couverte que pour un cas d'indisponibilité (`test_article_hors_stock_exclu`) — les cas liste vide, SKU inconnu seul, et ordre de zones multiples ne sont pas spécifiés. (`inventory/orders.py:6-21`)
 - **Couverture de `items_in_zone()` insuffisante.** Le test ne vérifie qu'un comptage sur la zone `A`, pas les identités des articles, pas la zone inexistante, pas la zone vide. (`tests/test_warehouse.py:11-12`)
-- **Aucune CI, aucune vérification automatique de la rouge.** Sans CI, rien ne garantit que les tests sont lancés avant chaque commit. Le test rouge pourrait passer vert (si le bug est corrigé sans intention) sans que personne le remarque avant relecture manuelle.
+- **Aucune CI, aucune vérification automatique à chaque commit.** Sans CI, rien ne garantit que les tests sont lancés avant chaque commit. Des régressions peuvent passer inaperçues sans relecture manuelle.
 - **Pas de `.gitignore`.** Les artefacts de build (`__pycache__/`, `.pyc`) sont tracés par git sans nécessité.
 
 ## Zones critiques
