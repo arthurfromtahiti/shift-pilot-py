@@ -3,7 +3,7 @@
 ITEMS = [
     {"sku": "AX-100", "label": "Ancre 10kg", "qty": 12, "reserved": 2, "zone": "A"},
     {"sku": "BX-220", "label": "Bouée gonflable", "qty": 0, "reserved": 0, "zone": "B"},
-    {"sku": "CX-330", "label": "Cordage 20m", "qty": 45, "reserved": 50, "zone": "A"},
+    {"sku": "CX-330", "label": "Cordage 20m", "qty": 45, "reserved": 5, "zone": "A"},
     {"sku": "DX-440", "label": "Dérive alu", "qty": 7, "reserved": 1, "zone": "C"},
 ]
 

@@ -11,11 +11,11 @@ class TestWarehouse(unittest.TestCase):
     def test_items_in_zone(self):
         self.assertEqual(len(items_in_zone("A")), 2)
 
-    def test_available_qty_never_negative(self):
-        # Test ROUGE volontaire : CX-330 a 45 en stock et 50 réservés.
-        # La disponibilité ne doit jamais descendre sous zéro.
+    def test_available_qty_cx330(self):
+        # CX-330 : qty=45, reserved=5 → doit afficher 40 unités disponibles.
+        # Anomalie corrigée : reserved était à 50 (> qty), rendant l'article indisponible.
         item = find_by_sku("CX-330")
-        self.assertEqual(available_qty(item), 0)
+        self.assertEqual(available_qty(item), 40)
 
 
 if __name__ == "__main__":
