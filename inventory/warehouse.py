@@ -20,13 +20,8 @@ def find_by_sku(sku):
 
 
 def available_qty(item):
-    """Quantité réellement disponible à la vente.
-
-    Bug volontaire : ne borne pas à zéro. CX-330 a 45 en stock mais 50 réservés,
-    ce qui donne -5 — une quantité négative remonte jusqu'à l'appelant au lieu
-    d'être ramenée à 0.
-    """
-    return item["qty"] - item["reserved"]
+    """Quantité réellement disponible à la vente (jamais négative)."""
+    return max(0, item["qty"] - item["reserved"])
 
 
 def items_in_zone(zone):
