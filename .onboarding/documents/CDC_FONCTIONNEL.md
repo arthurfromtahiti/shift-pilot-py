@@ -200,9 +200,9 @@ Le modèle simplifié en mémoire porte four articles distincts, chacun une zone
 **Flux** :
 1. L'appelant invoque `picking_list(lines)` avec une liste de tuples `(sku, qty)`.
 2. Pour chaque tuple `(sku, qty)` :
-   a. `find_by_sku(sku)` récupère l'article.
-   b. Si article inexistant (`None`) : la ligne est **ignorée silencieusement** (pas de log, pas d'exception).
-   c. Sinon : construit une entrée `{sku, zone, qty}` avec la zone réelle de l'article.
+   a. `can_fulfil(sku, qty)` est appelé pour vérifier la disponibilité réelle.
+   b. Si `can_fulfil` retourne `False` (SKU inexistant ou stock insuffisant) : la ligne est **ignorée silencieusement** (pas de log, pas d'exception).
+   c. Sinon : `find_by_sku(sku)` récupère l'article et construit une entrée `{sku, zone, qty}` avec la zone réelle.
 3. La liste résultante est **triée par zone en ordre alphabétique croissant**.
 4. La liste triée est retournée.
 
@@ -215,25 +215,25 @@ Le modèle simplifié en mémoire porte four articles distincts, chacun une zone
 Entrée : [("CX-330", 10), ("AX-100", 5), ("DX-440", 2), ("INEXISTANT", 1)]
 
 Traitement :
-- CX-330 → item trouvé → zone A → {sku: "CX-330", zone: "A", qty: 10}
-- AX-100 → item trouvé → zone A → {sku: "AX-100", zone: "A", qty: 5}
-- DX-440 → item trouvé → zone C → {sku: "DX-440", zone: "C", qty: 2}
-- INEXISTANT → item None → ligne ignorée (pas de signal)
+- CX-330 → can_fulfil("CX-330", 10) → False (available_qty=0, rupture) → ligne ignorée
+- AX-100 → can_fulfil("AX-100", 5) → True → zone A → {sku: "AX-100", zone: "A", qty: 5}
+- DX-440 → can_fulfil("DX-440", 2) → True → zone C → {sku: "DX-440", zone: "C", qty: 2}
+- INEXISTANT → can_fulfil("INEXISTANT", 1) → False (SKU inconnu) → ligne ignorée
 
-Avant tri : [{zone: "A", ...}, {zone: "A", ...}, {zone: "C", ...}]
-Après tri : [{zone: "A", sku: "CX-330", qty: 10}, {zone: "A", sku: "AX-100", qty: 5}, {zone: "C", sku: "DX-440", qty: 2}]
+Avant tri : [{zone: "A", ...}, {zone: "C", ...}]
+Après tri : [{zone: "A", sku: "AX-100", qty: 5}, {zone: "C", sku: "DX-440", qty: 2}]
 ```
 
 **Comportement observé** :
-- SKU inconnu → ligne supprimée silencieusement. Aucun signal (log, compteur, exception).
-- Quantité demandée incluse telle quelle, sans vérification de disponibilité. La fonction ne contrôle pas si `available_qty >= qty`.
+- SKU inconnu → ligne supprimée silencieusement via `can_fulfil`. Aucun signal (log, compteur, exception).
+- Disponibilité insuffisante → ligne exclue silencieusement. `can_fulfil(sku, qty)` est appelé pour chaque ligne ; si `available_qty < qty`, la ligne n'apparaît pas dans la liste retournée.
 - La sortie est triée par zone en ordre alphabétique croissant (`"A" < "B" < "C"`).
 - La zone provient du stock, pas de la commande.
 
-**Risques/Limitations actuelles** :
-- **Découplage fonctionnel** : `picking_list()` n'appelle pas `can_fulfil()` et ne vérifie pas la disponibilité. Une commande générée sans passage par `can_fulfil()` préalable peut inclure des articles en rupture.
-- **Absence d'orchestrateur** : il n'existe aucune fonction qui enchaîne `can_fulfil()` pour chaque ligne, puis `picking_list()` sur les lignes valides. L'appelant doit implémenter cette logique.
-- Aucun test n'existe pour ce parcours.
+**Comportement post-correctif** :
+- **Vérification intégrée** : `picking_list()` appelle `can_fulfil()` pour chaque ligne en interne. L'appelant n'a plus besoin de pré-filtrer.
+- **Limitation résiduelle** : `find_by_sku` est appelé deux fois pour les lignes valides (une fois via `can_fulfil`, une fois pour récupérer la zone). Sans impact sur données en mémoire.
+- 7 tests couvrent ce parcours (`tests/test_orders.py`).
 
 ---
 
@@ -278,7 +278,7 @@ Le pilote **ne couvre pas** :
 - **Concurrence** : pas de verrou, pas de transaction. `ITEMS` est une liste partagée, mutable par les appelants.
 - **Historique** : aucune trace de qui a réservé quoi, ni quand.
 - **Intégration externe** : pas de synchronisation avec une base de données, pas d'API de commandes distantes.
-- **Orchestration de commande complète** : pas de fonction qui enchaîne vérification + prélèvement. L'appelant doit implémenter cet orchestrateur.
+- **Orchestration de commande complète** : `picking_list()` intègre désormais la vérification de disponibilité via `can_fulfil()`. La vérification + exclusion est enchaînée en interne ; l'appelant n'a plus besoin de pré-filtrer.
 
 Toutes ces omissions sont documentées comme volontaires dans les audits et questions ouvertes.
 
@@ -291,9 +291,9 @@ Toutes ces omissions sont documentées comme volontaires dans les audits et ques
 - `can_fulfil("CX-330", -6)` retournerait `True` (demande invalide non validée, mais ce n'est pas un cas métier valide).
 - **Résumé** : le code refuse correctement une demande >= 0 sur rupture.
 
-### Parcours 6 (picking_list) : sans vérification
-- Si l'appelant fourni `[("CX-330", 10)]`, la liste de prélèvement inclut l'article sans signal, même si en rupture (`available_qty = 0`).
-- **Résumé** : `picking_list()` ne vérifie pas la disponibilité. Un orchestrateur doit appeler `can_fulfil()` avant `picking_list()` pour la sécurité.
+### Parcours 6 (picking_list) : vérification intégrée
+- `picking_list()` appelle `can_fulfil(sku, qty)` pour chaque ligne avant inclusion. Pour `[("CX-330", 10)]`, l'article est exclu car `available_qty = 0`.
+- **Résumé** : `picking_list()` vérifie la disponibilité via `can_fulfil()` en interne. L'appelant n'a plus besoin de pré-filtrer.
 
 ---
 
@@ -301,5 +301,5 @@ Toutes ces omissions sont documentées comme volontaires dans les audits et ques
 
 - **Workflows** : `WORKFLOW_CONSULTATION_STOCK.md`, `WORKFLOW_FAISABILITE_COMMANDE.md`, `WORKFLOW_PRELEVEMENT_COMMANDE.md` (lus en intégralité, alignés avec ce CDC).
 - **Code source** : `inventory/warehouse.py` (34 lignes), `inventory/orders.py` (22 lignes) (lus en intégralité).
-- **Tests** : `tests/test_warehouse.py` (22 lignes, couvre partiellement warehouse, zéro sur orders).
+- **Tests** : `tests/test_warehouse.py` (couvre partiellement warehouse), `tests/test_orders.py` (7 cas pour `picking_list` — verts).
 - **Audits** : fonctionnel, données, architecture, testing, sécurité (tous alignés).

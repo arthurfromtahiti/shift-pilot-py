@@ -43,8 +43,8 @@ Deux domaines métier, décrits dans `CARTE_DES_DOMAINES.md` :
 ### Calcul de disponibilité borné à zéro
 La fonction `available_qty()` retourne `max(0, qty - reserved)` pour assurer que la disponibilité est toujours non-négative. Pour `CX-330` (qty=45, reserved=50), cela donne `0` (rupture). Ce comportement est documenté et testé (`test_available_qty_never_negative` est vert).
 
-### Absence d'orchestrateur de commande
-Le code expose deux fonctions indépendantes : `can_fulfil()` (vérification) et `picking_list()` (génération). Il n'existe aucune fonction qui enchaîne les deux — c'est au caller de coordonner. La lacune est documentée comme question ouverte dans l'audit fonctionnel.
+### Orchestration intégrée dans picking_list
+`picking_list()` appelle désormais `can_fulfil()` en interne pour chaque ligne avant inclusion. Les lignes avec stock insuffisant sont exclues silencieusement. L'appelant n'a plus besoin de coordonner les deux fonctions pour la sécurité d'un prélèvement.
 
 ### Absence de couche d'exposition
 Le projet est une bibliothèque Python pure. Aucune route HTTP, aucune CLI, aucun point d'entrée utilisateur.
@@ -52,15 +52,15 @@ Le projet est une bibliothèque Python pure. Aucune route HTTP, aucune CLI, aucu
 ### Unicité du SKU non garantie
 Le modèle de données est implicite — une liste Python de dicts sans schéma déclaré. `find_by_sku()` retourne le premier match, et l'unicité n'est pas vérifiée.
 
-### Tests incomplets
-- `inventory/warehouse.py` : 3 tests exécutés (tous verts).
-- `inventory/orders.py` : zéro test. Les deux fonctions critiques (`can_fulfil`, `picking_list`) n'ont aucune couverture de test.
+### Couverture de test
+- `inventory/warehouse.py` : 3 tests (tous verts).
+- `inventory/orders.py` : 7 tests couvrant `picking_list` (tous verts). `can_fulfil` est couvert indirectement.
 
 ## Dépôt et source de vérité
 
 Le dépôt est complet et auto-contenu :
 - Code source : `inventory/warehouse.py` (34 lignes), `inventory/orders.py` (22 lignes).
-- Tests : `tests/test_warehouse.py` (22 lignes, couvre warehouse uniquement).
+- Tests : `tests/test_warehouse.py` (warehouse), `tests/test_orders.py` (7 cas pour `picking_list`).
 - Documentation : `README.md` (15 lignes), `CARTE_DES_DOMAINES.md` (61 lignes).
 - Aucune dépendance externe, aucune base de données.
 
@@ -69,7 +69,7 @@ Le dépôt est complet et auto-contenu :
 Aucune roadmap formelle n'est documentée. Les audits et workflows ont identifié des sujets ouverts pour une future évolution :
 
 1. **Orchestrateur de commande** : enchaîner `can_fulfil()` puis `picking_list()` pour une logique complète de vérification + prélèvement.
-2. **Couverture de tests** : implémenter les tests manquants pour `can_fulfil()` et `picking_list()` (actuellement 0% couverture sur `orders.py`).
+2. **Couverture de tests** : compléter les tests pour `can_fulfil()` directement et les cas limites de `picking_list()` (robustesse, entrées invalides).
 3. **Couche d'exposition** : API HTTP ou CLI pour l'accès aux domaines (actuellement : fonctions Python pures seulement).
 4. **Mécanisme de réservation/mise à jour** : permettre l'altération du stock au-delà de la lecture actuelle.
 5. **Persistance** : survie des données entre redémarrages du processus.

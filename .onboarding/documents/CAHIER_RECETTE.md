@@ -6,7 +6,7 @@
 
 Ce cahier de recette énumère les cas de test **dérivés directement des workflows métier** documentés en étape 2. Chaque cas est tracé à un workflow, à une fonction code, et à un objectif métier. Le but est de guider la création d'une suite de test complète couvrant tous les domaines.
 
-**État actuel** : 3 tests existent dans `tests/test_warehouse.py` (tous verts). Tous les cas du domaine `préparation-commande` sont **non testés**.
+**État actuel** : 10 tests existent (3 dans `tests/test_warehouse.py`, 7 dans `tests/test_orders.py`, tous verts). Les cas nominaux de `picking_list` sont désormais couverts.
 
 ---
 
@@ -157,7 +157,7 @@ Pour chaque workflow :
 **Domaine** : `preparation-commande`  
 **Fonction testée** : `picking_list(lines)`
 
-**État actuel** : **Zéro test** pour ce workflow.
+**État actuel** : **7 tests** (`tests/test_orders.py`, tous verts) couvrent ce workflow.
 
 ### 3.1 — Cas nominal
 
@@ -184,7 +184,7 @@ Pour chaque workflow :
 
 | # | Cas | Entrée | Disponibilité réelle | Attente métier | Réalité code | État |
 |---|-----|--------|---|---|---|---|
-| 3.3.a | Article en rupture, sans `can_fulfil` préalable | `[("CX-330", 10)]` | 0 | Devrait refuser ou signaler | `{sku: "CX-330", zone: "A", qty: 10}` | ⚠️ Pas de vérification implicite : fonction génère liste sans validation. |
+| 3.3.a | Article en rupture | `[("CX-330", 10)]` | 0 | `[]` (rupture exclue) | `[]` | ✓ `picking_list` appelle `can_fulfil` en interne — CX-330 exclu (`test_stock_surreserve_exclu`). |
 | 3.3.b | Article en rupture, avec `can_fulfil` validant | `can_fulfil("CX-330", 0)` retourne `False`, donc pas d'appel à `picking_list` | 0 | Aucune liste générée | N/A | L'orchestrateur doit enchaîner les deux (pas implémenté). |
 
 ### 3.4 — Cas de robustesse (exploration défensive du code, non testés)
@@ -208,8 +208,8 @@ Pour chaque workflow :
 - ✗ `list_items` : pas de test.
 
 ### Domaine préparation-commande
-- ✗ `can_fulfil` : **aucun test**.
-- ✗ `picking_list` : **aucun test**.
+- ✗ `can_fulfil` : **aucun test direct** (couvert indirectement via `picking_list`).
+- ✓ `picking_list` : **7 tests** (`tests/test_orders.py` — verts).
 
 ---
 
