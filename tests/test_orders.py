@@ -26,6 +26,25 @@ class TestPickingList(unittest.TestCase):
         result = picking_list([("CX-330", -5)])
         self.assertEqual(result, [])
 
+    def test_plusieurs_lignes_meme_sku_depassement_exclu(self):
+        # CX-330 : available=40 ; deux lignes de 30 → total 60 > 40 → la 2e doit être exclue
+        result = picking_list([("CX-330", 30), ("CX-330", 30)])
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["sku"], "CX-330")
+        self.assertEqual(result[0]["qty"], 30)
+
+    def test_plusieurs_lignes_meme_sku_dans_les_limites(self):
+        # CX-330 : available=40 ; deux lignes de 20 → total 40 = available → les deux incluses
+        result = picking_list([("CX-330", 20), ("CX-330", 20)])
+        self.assertEqual(len(result), 2)
+        self.assertTrue(all(e["sku"] == "CX-330" for e in result))
+
+    def test_plusieurs_lignes_meme_sku_allocation_cumulative(self):
+        # CX-330 : available=40 ; lignes 15+15+15 → total 45 > 40 → la 3e exclue
+        result = picking_list([("CX-330", 15), ("CX-330", 15), ("CX-330", 15)])
+        self.assertEqual(len(result), 2)
+        self.assertTrue(all(e["sku"] == "CX-330" for e in result))
+
 
 if __name__ == "__main__":
     unittest.main()
