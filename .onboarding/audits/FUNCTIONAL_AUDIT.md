@@ -49,8 +49,8 @@ Le code est cohérent avec les workflows documentés — chaque comportement dé
 
 ## Recommandations priorisées
 
-1. **Ajouter des tests pour `can_fulfil()` et compléter ceux de `picking_list()`** — Documenter par les tests le nouveau comportement de filtrage par disponibilité. Cas minimaux : SKU connu/inconnu, quantité demandée positive/zéro/négative, comportement du bug `CX-330` dans `can_fulfil()`, liste vide dans `picking_list()`, SKU mixte. (`tests/test_orders.py`)
-2. **Documenter explicitement dans la docstring de `picking_list()` le filtrage par disponibilité** — Clarifier que les lignes infaisables sont silencieusement exclues et que le comportement est déterministe. (`inventory/orders.py:13`)
+1. **Ajouter des tests pour `can_fulfil()`** — Documenter par les tests le comportement de `can_fulfil()` directement (SKU connu/inconnu, quantité demandée positive/zéro/négative, comportement du bug `CX-330`). (`tests/test_orders.py`)
+2. **Clarifier la docstring de `picking_list()`** — Le commentaire de docstring est présent et correct depuis le correctif 316 (`inventory/orders.py:16-20`), décrivant le cumul intra-commande. À maintenir.
 3. **Envisager un mécanisme de réservation / mise à jour de stock** — Même symbolique (une fonction `reserve(sku, qty)` qui modifie `reserved` en mémoire), pour rendre le pilote fonctionnellement plus réaliste.
 
 ## Questions ouvertes
