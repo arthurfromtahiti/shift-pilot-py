@@ -14,6 +14,7 @@ Aucun.
 - Le constat "pas d'orchestrateur de commande" est bien prouvé par lecture de [inventory/orders.py](/paperclip/instances/default/projects/be2f6065-a710-4a1d-8bb7-531efdbc6f23/4ec0dde5-c953-42bb-987a-33680bc426ea/shift-pilot-py/inventory/orders.py:1), qui n'expose que `can_fulfil()` et `picking_list()`.
 - Le découplage entre faisabilité et prélèvement est correctement sourcé : [inventory/orders.py](/paperclip/instances/default/projects/be2f6065-a710-4a1d-8bb7-531efdbc6f23/4ec0dde5-c953-42bb-987a-33680bc426ea/shift-pilot-py/inventory/orders.py:13) ne vérifie pas la disponibilité.
 - L'absence de mutation métier du stock est correctement démontrée à la lecture complète de [inventory/warehouse.py](/paperclip/instances/default/projects/be2f6065-a710-4a1d-8bb7-531efdbc6f23/4ec0dde5-c953-42bb-987a-33680bc426ea/shift-pilot-py/inventory/warehouse.py:1).
+- Après le correctif SHIAAAAAAAAAAAAAAAAAAAAAAAA-316, `picking_list()` ne vérifie plus la disponibilité via `can_fulfil()`, mais via un dict cumulatif `allocated` pour gérer les lignes multiples du même SKU dans une commande. Cette séparation des deux mécanismes est correctement documentée dans le workflow mis à jour.
 
 ## Recommandations de correction
-- Rendre la portée du bug volontaire plus précise dans la synthèse, par exemple en distinguant ce qui est documenté et ce qui reste dépendant de l'appelant (`can_fulfil` vs `picking_list`).
+- Aucune ; l'audit et les workflows sont maintenant cohérents avec le code après le correctif 316.
