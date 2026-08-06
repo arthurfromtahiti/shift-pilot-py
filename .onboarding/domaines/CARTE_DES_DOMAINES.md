@@ -34,7 +34,7 @@ Fonctionnellement, il modélise un **stock d'entrepôt en mémoire** (articles a
 - **Confiance** : high
 - **Description** : Opérations dérivées du stock côté exécution logistique — décider si une commande **peut être honorée** pour une quantité demandée, et transformer des **lignes de commande** en **liste de prélèvement** triée par zone (ordre de parcours de l'entrepôt). Domaine consommateur : il ne détient aucune donnée propre, il s'appuie entièrement sur `entrepot-stock` (`from inventory.warehouse import find_by_sku, available_qty`, `inventory/orders.py:3`). D'où sa priorité `support` plutôt que `cœur`.
 - **Entités** : aucune entité propre. Manipule des **lignes de commande** — tuples `(sku, qty)` en entrée (`inventory/orders.py:16`) — et produit des **entrées de prélèvement** `{sku, zone, qty}` (`inventory/orders.py:20`).
-- **Routes / points d'entrée** : aucune route. Fonctions : `can_fulfil(sku, requested)`, `picking_list(lines)` (`inventory/orders.py:6-21`).
+- **Routes / points d'entrée** : aucune route. Fonctions : `can_fulfil(sku, requested)`, `picking_list(lines)` (`inventory/orders.py:6-35`).
 - **Indices de rattachement** : module `inventory/orders.py` ; symboles `can_fulfil`, `picking_list`, `lines`, `requested`, `picking`.
 - **Types de workflows attendus** : contrôle de faisabilité d'une commande, génération d'une feuille de prélèvement ordonnée par zone. Hérite mécaniquement du bug de `available_qty` : `can_fulfil` peut se tromper quand le réservé dépasse le stock (à confronter en étape workflows/audit).
 - **Preuves** : `inventory/orders.py`.

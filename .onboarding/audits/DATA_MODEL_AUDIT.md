@@ -24,7 +24,7 @@ Le modèle de données est une liste Python de quatre dicts avec cinq champs cha
 
 **VÉRIFIÉ_CODE — Les dicts sont mutables.** `find_by_sku()` et `list_items()` retournent des références directes aux dicts de `ITEMS` (`inventory/warehouse.py:11-12`, `inventory/warehouse.py:17-18`). Un appelant qui modifie un champ du dict retourné modifie `ITEMS` en place : `item["qty"] = 0` changerait le stock pour tous les appels suivants dans le même processus.
 
-**VÉRIFIÉ_CODE — Aucune entité propre dans `orders.py`.** Le domaine `preparation-commande` ne définit aucune structure de données. Il manipule des tuples `(sku, qty)` en entrée (informels) et produit des dicts `{sku, zone, qty}` en sortie (informels). Aucune classe ou type dédié. (`inventory/orders.py:13-21`)
+**VÉRIFIÉ_CODE — Aucune entité propre dans `orders.py`.** Le domaine `preparation-commande` ne définit aucune structure de données. Il manipule des tuples `(sku, qty)` en entrée (informels) et produit des dicts `{sku, zone, qty}` en sortie (informels). Aucune classe ou type dédié. (`inventory/orders.py:15-35`)
 
 ## Forces
 
