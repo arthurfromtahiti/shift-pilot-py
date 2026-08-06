@@ -16,6 +16,16 @@ class TestPickingList(unittest.TestCase):
         self.assertEqual(result[0]["sku"], "CX-330")
         self.assertEqual(result[0]["qty"], 10)
 
+    def test_quantite_nulle_exclue(self):
+        # qty=0 : ligne invalide, doit être exclue même si le stock est disponible
+        result = picking_list([("CX-330", 0)])
+        self.assertEqual(result, [])
+
+    def test_quantite_negative_exclue(self):
+        # qty<0 : ligne invalide, doit être exclue même si le stock est disponible
+        result = picking_list([("CX-330", -5)])
+        self.assertEqual(result, [])
+
 
 if __name__ == "__main__":
     unittest.main()
