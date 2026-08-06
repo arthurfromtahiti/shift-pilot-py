@@ -8,7 +8,7 @@ La suite de tests est composée de deux fichiers (`tests/test_warehouse.py`, 22 
 
 ## Résumé exécutif
 
-Neuf tests total : trois sur `warehouse.py` (un rouge volontaire), six sur `orders.py` (couvrant `picking_list()`). La qualité des tests existants est correcte pour leur périmètre : ils couvrent les cas nominaux, les cas critiques de disponibilité insuffisante, et le cumul intra-commande (après le correctif SHIAAAAAAAAAAAAAAAAAAAAAAAA-316). Les six tests de `picking_list()` valident l'exclusion des articles non disponibles, les quantités nulles/négatives, et la règle de cumul intra-commande pour plusieurs lignes du même SKU. La couverture de `orders.py` s'est améliorée — `picking_list()` a une bonne couverture — mais `can_fulfil()` n'a toujours aucun test. Il n'existe ni CI, ni configuration de coverage, ni lint. Les `__pycache__/` ne sont pas ignorés par git (absence de `.gitignore`).
+Neuf tests total : trois sur `warehouse.py` (tous verts), six sur `orders.py` (couvrant `picking_list()`). La qualité des tests existants est correcte pour leur périmètre : ils couvrent les cas nominaux, les cas critiques de disponibilité insuffisante, et le cumul intra-commande (après le correctif SHIAAAAAAAAAAAAAAAAAAAAAAAA-316). Les six tests de `picking_list()` valident l'exclusion des articles non disponibles, les quantités nulles/négatives, et la règle de cumul intra-commande pour plusieurs lignes du même SKU. La couverture de `orders.py` s'est améliorée — `picking_list()` a une bonne couverture — mais `can_fulfil()` n'a toujours aucun test. Il n'existe ni CI, ni configuration de coverage, ni lint. Les `__pycache__/` ne sont pas ignorés par git (absence de `.gitignore`).
 
 ## Constats détaillés
 

@@ -10,5 +10,4 @@ production ne supposent pas un écosystème JavaScript.
 python3 -m unittest discover -s tests -t .
 ```
 
-Un test est **rouge volontairement** : `available_qty` ne borne pas la disponibilité
-à zéro, si bien qu'un article plus réservé que stocké remonte une quantité négative.
+Tous les tests passent.
