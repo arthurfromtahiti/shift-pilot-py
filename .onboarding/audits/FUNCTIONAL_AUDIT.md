@@ -29,14 +29,14 @@ Le code est cohérent avec les workflows documentés — chaque comportement dé
 ## Forces
 
 - **Cohérence code-workflow : totale.** Les trois workflows documentés correspondent précisément au code lu. Aucun écart entre description et implémentation.
-- **Invariant métier traçable de bout en bout.** `CX-330` est identifié dans les données avec disponibilité négative (qty=45, reserved=50), géré correctement par `available_qty()` qui retourne `max(0, ...)`, validé par un test vert (`test_available_qty_never_negative`), et documenté dans les workflows et la carte des domaines. C'est une démonstration complète d'un invariant métier et de sa validation.
+- **Invariant métier traçable de bout en bout.** `CX-330` est identifié dans les données avec une réservation correcte (qty=45, reserved=5, available=40 après le correctif SHIAAAAAAAAAAAAAAAAAAAAAAAA-231), géré correctement par `available_qty()` qui retourne `max(0, ...)`, validé par un test vert (`test_available_qty_cx330`, `tests/test_warehouse.py:14`), et documenté dans les workflows et la carte des domaines. C'est une démonstration complète d'un invariant métier et de sa validation.
 - **Séparation fonctionnelle claire.** Le stock (lecture pure) et la préparation de commande (logique dérivée) sont deux modules distincts avec des responsabilités non mélangées.
 
 ## Dettes techniques
 
 - **Pas d'orchestrateur explicite de commande.** L'enchaînement logique `can_fulfil()` → `picking_list()` est maintenant cohérent au niveau du code, mais il n'y a pas de point d'entrée unique qui les orchestrerait. Un appelant doit les invoquer séquentiellement, sans exemple ni guide.
 - **Aucune mutation de stock.** Pas de `reserve()`, `release()`, ni `update_qty()`. Le stock est figé à l'initialisation, ce qui rend le pilote non réaliste pour une logistique réelle (les réservations doivent être mises à jour après un prélèvement).
-- **Couverture de tests partiellement améliorée sur `orders.py`.** 6 tests couvrent désormais `picking_list()` dans `tests/test_orders.py` (cumul intra-commande, quantités nulles/négatives, articles hors stock, tri par zone). Le test de `can_fulfil()` directement est toujours absent.
+- **Couverture de tests partiellement améliorée sur `orders.py`.** 7 tests couvrent désormais `picking_list()` dans `tests/test_orders.py` (cumul intra-commande, quantités nulles/négatives, articles hors stock, tri par zone). Le test de `can_fulfil()` directement est toujours absent.
 
 ## Zones critiques
 

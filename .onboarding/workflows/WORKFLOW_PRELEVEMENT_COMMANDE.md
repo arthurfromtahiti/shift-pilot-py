@@ -61,5 +61,5 @@ Aucune intégration externe explicite visible. Dépendances internes directes : 
 ## Preuves
 - `inventory/orders.py` — lu en intégralité (lignes 1-36)
 - `inventory/warehouse.py` — lu en intégralité (chaîne d'appel directe via `find_by_sku` et `available_qty`)
-- `tests/test_orders.py` — lu en intégralité (6 tests couvrant cumul intra-commande, quantités nulles/négatives, articles hors stock)
+- `tests/test_orders.py` — lu en intégralité (7 tests couvrant cumul intra-commande, quantités nulles/négatives, articles hors stock)
 - `CARTE_DES_DOMAINES.md` — domaine `preparation-commande`

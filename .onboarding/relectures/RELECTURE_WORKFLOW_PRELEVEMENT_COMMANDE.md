@@ -17,7 +17,7 @@ Aucun.
 - La règle "SKU inconnu ou indisponible → ligne ignorée silencieusement" est prouvée par les `continue` sans log ni exception (`inventory/orders.py:27-32`).
 - La dépendance sur `find_by_sku` pour récupérer la zone de l'article est correcte (`inventory/orders.py:27`).
 - Le test `tests/test_orders.py:test_plusieurs_lignes_meme_sku_depassement_exclu` valide le cumul intra-commande (CX-330, available=40, deux lignes de 30 → 1ère incluse, 2e exclue) (`tests/test_orders.py:29-34`).
-- 5 autres tests couvrent : articles hors stock (BX-220), quantités nulles/négatives, cumul sans dépassement, cumul triple — cas completes du nouveau mécanisme.
+- 6 autres tests couvrent : articles hors stock (BX-220), quantités nulles/négatives, cumul sans dépassement, cumul triple — cas completes du nouveau mécanisme.
 
 ## Recommandations de correction
 Aucune.
