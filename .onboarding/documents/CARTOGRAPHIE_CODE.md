@@ -4,17 +4,17 @@
 
 ## Aperçu
 
-Dépôt minimaliste : 2 modules métier (56 lignes), 1 suite de tests (22 lignes), zéro dépendance externe, zéro framework. La structure suit une séparation domaine claire (`warehouse → orders`).
+Dépôt minimaliste : 2 modules métier (56 lignes), 1 suite de tests (41 lignes, 6 cas), zéro dépendance externe, zéro framework. La structure suit une séparation domaine claire (`warehouse → orders`).
 
 ```
 shift-pilot-py/
 ├── inventory/
 │   ├── __init__.py          (vide)
-│   ├── warehouse.py         (34 lignes) — Domaine entrepôt-stock
+│   ├── warehouse.py         (29 lignes) — Domaine entrepôt-stock
 │   └── orders.py            (22 lignes) — Domaine préparation-commande
 ├── tests/
 │   ├── __init__.py          (vide)
-│   └── test_warehouse.py    (22 lignes) — Tests partiels
+│   └── test_warehouse.py    (41 lignes) — 6 tests warehouse
 ├── README.md                (15 lignes)
 ├── CARTE_DES_DOMAINES.md    (61 lignes)
 └── [non versionné : .onboarding/, relectures/, audits/, workflows/]
@@ -24,7 +24,7 @@ shift-pilot-py/
 
 ## Fichiers source
 
-### `inventory/warehouse.py` (34 lignes)
+### `inventory/warehouse.py` (29 lignes)
 
 **Responsabilité** : Référentiel du stock et opérations de base sur les articles.
 
@@ -33,7 +33,7 @@ shift-pilot-py/
 ITEMS = [
     {"sku": "AX-100", "label": "Ancre 10kg", "qty": 12, "reserved": 2, "zone": "A"},
     {"sku": "BX-220", "label": "Bouée gonflable", "qty": 0, "reserved": 0, "zone": "B"},
-    {"sku": "CX-330", "label": "Cordage 20m", "qty": 45, "reserved": 50, "zone": "A"},
+    {"sku": "CX-330", "label": "Cordage 20m", "qty": 45, "reserved": 5, "zone": "A"},
     {"sku": "DX-440", "label": "Dérive alu", "qty": 7, "reserved": 1, "zone": "C"},
 ]
 ```
@@ -50,15 +50,14 @@ ITEMS = [
 | Fonction | Signature | Ligne | Rôle | Retour |
 |----------|-----------|------|------|--------|
 | `list_items()` | `() → list` | 11-12 | Retourne la liste complète des articles. | `ITEMS` (référence directe, pas copie). |
-| `find_by_sku(sku)` | `(str) → dict \| None` | 15-19 | Cherche un article par SKU. | Dict article ou `None` si absent. |
+| `find_by_sku(sku)` | `(str) → dict \| None` | 15-19 | Cherche un article par SKU, insensible à la casse (compare `sku.upper()` des deux côtés). | Dict article ou `None` si absent. |
 | `available_qty(item)` | `(dict) → int` | 22-29 | Calcule la disponibilité à la vente. | `qty - reserved` (peut être négatif — **bug volontaire**). |
 | `items_in_zone(zone)` | `(str) → list` | 32-33 | Retourne les articles d'une zone. | Liste de dicts (peut être vide). |
 
 **Éléments critiques** :
-- `available_qty()` est le **porteur du bug volontaire** : ne borne pas le résultat à 0.
-  - `CX-330` → `45 - 50 = -5` ❌
-  - Documenté dans la docstring (lignes 23-28).
-  - Test rouge intentionnel le capture : `test_available_qty_never_negative`.
+- `find_by_sku()` effectue une comparaison **insensible à la casse** (normalise en majuscules).
+  - Permet de retrouver "AX-100" via "ax-100", "Ax-100", etc.
+  - Test : `test_find_by_sku_insensible_casse` valide ce comportement.
 
 **Dettes / Limites** :
 - `list_items()` expose une référence, pas une copie → risque de mutation externe.
@@ -144,21 +143,15 @@ def picking_list(lines):
 |------|-------|----------|------|
 | `test_find_by_sku()` | 7-9 | Vérifie la recherche : SKU connu retourne un résultat, SKU absent retourne `None`. | ✓ Vert |
 | `test_items_in_zone()` | 11-12 | Vérifie le filtrage : zone "A" contient 2 articles. | ✓ Vert |
-| `test_available_qty_never_negative()` | 14-18 | Vérifie l'invariant : disponibilité ≥ 0. Teste `CX-330` : s'attend à 0, trouve -5. | ❌ **Rouge intentionnel** |
-
-**Test rouge détail** (lignes 14-18) :
-```python
-def test_available_qty_never_negative(self):
-    item = find_by_sku("CX-330")
-    self.assertEqual(available_qty(item), 0)  # Attend 0, reçoit -5
-```
-
-Encode l'**invariant métier attendu** (`disponible ≥ 0`), pas le comportement actuel. C'est la cible pédagogique du pilote.
+| `test_available_qty_cx330()` | 14-18 | Vérifie la disponibilité de CX-330 : attend 40 (qty=45 minus reserved=5). | ✓ Vert |
+| `test_available_qty_borne_a_zero_quand_reserved_superieur_a_qty()` | 20-23 | Garde : si reserved > qty, disponibilité doit être 0, jamais négatif. | ✓ Vert |
+| `test_invariant_reserved_ne_depasse_pas_qty_dans_items()` | 25-31 | Vérifie que pour chaque article dans ITEMS, reserved ≤ qty. | ✓ Vert |
+| `test_find_by_sku_insensible_casse()` | 33-37 | Vérifie que `find_by_sku()` ignore la casse : "ax-100", "Ax-100" retrouvent "AX-100". | ✓ Vert |
 
 **Couverture** :
-- ✓ `find_by_sku()` : couverture basique (SKU connu/absent).
+- ✓ `find_by_sku()` : couverture basique (SKU connu/absent) et test de casse.
 - ✓ `items_in_zone()` : couverture minimale (compte zone A, pas les identités).
-- ✓ `available_qty()` : couverture du bug volontaire.
+- ✓ `available_qty()` : couverture du comportement nominal et des gardes.
 - ✗ `list_items()` : pas de test.
 - ✗ `can_fulfil()` : pas de test.
 - ✗ `picking_list()` : pas de test.
@@ -204,12 +197,12 @@ inventory/orders.py
 - Toute modification ici casse tous les tests, tous les workflows.
 
 **Zones de fragilité** :
-- `available_qty()` ligne 29 — borne manquante (bug volontaire).
-- `list_items()` ligne 12 — référence directe sans copie.
-- `picking_list()` ligne 19 — silence sur SKU inconnu.
+- `list_items()` ligne 12 — référence directe sans copie (risque de mutation externe).
+- `picking_list()` ligne 19 — silence sur SKU inconnu (pas de log, pas d'exception).
+- Aucune validation de schéma en entrée (SKU vide, nul, etc.).
 
 **Zones de couverture** :
-- Warehouse : 3 tests couvrent 40% de la surface (bug, recherche, filtrage).
+- Warehouse : 6 tests couvrent ~60% de la surface (recherche basique/avancée, filtrage, disponibilité, invariants).
 - Orders : 0 tests couvrent 0% (fonction critique non spécifiée).
 
 ---
@@ -248,14 +241,13 @@ python3 -m unittest discover -s tests -t .
 
 **Sortie attendue** :
 ```
-..F
+......
 ------
-Ran 3 tests in XXXs
-FAILED (failures=1)
+Ran 6 tests in XXXs
+OK
 ```
 
-- `.` = test vert (`test_find_by_sku`, `test_items_in_zone`).
-- `F` = test rouge (`test_available_qty_never_negative`).
+- Les 6 tests sont verts : `test_find_by_sku`, `test_items_in_zone`, `test_available_qty_cx330`, `test_available_qty_borne_a_zero_quand_reserved_superieur_a_qty`, `test_invariant_reserved_ne_depasse_pas_qty_dans_items`, `test_find_by_sku_insensible_casse`.
 
 ---
 
@@ -297,8 +289,8 @@ Si ce pilote évolue, les points chauds seront :
 - ✓ Aucun écart entre description et implémentation.
 
 **Cohérence code-tests** :
-- ✓ Les 3 tests exécutent le code décrit.
-- ✗ Couverture incomplète : `orders.py` non testé.
+- ✓ Les 6 tests exécutent le code décrit.
+- ✗ Couverture incomplète : `orders.py` non testé, `list_items()` non testé.
 
 **Cohérence code-domaines** :
 - ✓ Deux modules, deux domaines.
@@ -309,9 +301,9 @@ Si ce pilote évolue, les points chauds seront :
 ## Résumé technique pour un futur développeur
 
 - **Stack** : Python 3.12 stdlib, aucun framework, aucune dépendance.
-- **Entrée** : lancer `python3 -m unittest discover -s tests -t .`.
+- **Entrée** : lancer `python3 -m unittest discover -s tests -t .` → tous les 6 tests passent.
 - **Cœur** : `inventory/warehouse.py` (stock) + `inventory/orders.py` (prélèvement).
-- **Data** : 4 articles en dur dans `ITEMS`.
-- **Bug** : `available_qty()` ligne 29 ne borne pas à zéro.
+- **Data** : 4 articles en dur dans `ITEMS` (AX-100, BX-220, CX-330, DX-440).
+- **Recherche** : `find_by_sku()` est insensible à la casse (`sku.upper()`).
 - **Grosse lacune** : tests absents pour `orders.py`.
 - **Prochaine étape probable** : ajouter API HTTP + tests complets.

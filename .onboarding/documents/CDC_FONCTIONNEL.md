@@ -9,7 +9,7 @@ Deux domaines métier coexistent dans ce pilote de logistique d'entrepôt :
 1. **Entrepôt-Stock** : référentiel en mémoire de quatre articles (SKU, quantité brute, quantité réservée, zone), avec opérations de consultation et calcul de disponibilité à la vente.
 2. **Préparation-Commande** : opérations dérivées pour décider si une commande peut être honorée et générer une liste de prélèvement.
 
-Le cœur de ce CDC est un **bug volontaire** : la disponibilité à la vente (`qty - reserved`) n'est jamais bornée à zéro. L'article `CX-330` (45 en stock, 50 réservés) remonte donc **-5**. Cette règle est documentée, testée par un test rouge intentionnel, et constitue le livrable pédagogique du pilote.
+La recherche par SKU (`find_by_sku()`) est **insensible à la casse** : elle normalise le SKU saisi et le SKU stocké en majuscules avant comparaison. Cela permet de retrouver un article indépendamment de la casse fournie par l'utilisateur (ex. "ax-100" retrouve "AX-100").
 
 ---
 
@@ -76,12 +76,13 @@ Le modèle simplifié en mémoire porte four articles distincts, chacun une zone
 
 #### Parcours 2 : Recherche d'un article par SKU
 
-**Objectif** : localiser un article unique par son identifiant SKU.  
+**Objectif** : localiser un article unique par son identifiant SKU (insensible à la casse).  
 **Flux** :
 1. L'appelant invoque `find_by_sku(sku)` avec une chaîne SKU.
 2. La fonction parcourt linéairement `ITEMS`.
-3. Si un article avec ce SKU existe, retourne le dict de cet article.
-4. Sinon, retourne `None`.
+3. Pour chaque article, compare `item["sku"].upper() == sku.upper()` (normalise les deux côtés en majuscules).
+4. Si un match est trouvé, retourne le dict de cet article.
+5. Sinon (après parcours complet), retourne `None`.
 
 **Données** :
 - Entrée : `sku` (str, en pratique non validée).
@@ -90,6 +91,7 @@ Le modèle simplifié en mémoire porte four articles distincts, chacun une zone
 **Comportement observé** :
 - **SKU non trouvé → `None`, pas d'exception**.
 - Les quatre articles du jeu de données ont des SKUs distincts (`AX-100`, `BX-220`, `CX-330`, `DX-440`).
+- **Insensibilité à la casse** : `find_by_sku("ax-100")`, `find_by_sku("AX-100")`, `find_by_sku("Ax-100")` retrouvent tous l'article `"AX-100"`.
 
 **Limitations structurelles de robustesse (non validées par le code)** :
 - **Unicité du SKU** : le code ne vérifie pas l'unicité. Si deux articles avaient le même SKU, `find_by_sku()` retournerait le premier seulement (comportement implicite, pas une garantie).
@@ -139,23 +141,15 @@ Le modèle simplifié en mémoire porte four articles distincts, chacun une zone
 |-----|-----|----------|-----------|
 | AX-100 | 12 | 2 | 10 |
 | BX-220 | 0 | 0 | 0 |
-| CX-330 | 45 | 50 | **-5** ← bug volontaire |
+| CX-330 | 45 | 5 | 40 |
 | DX-440 | 7 | 1 | 6 |
 
-**Règle métier attendue** :
-- Disponibilité ≥ 0 toujours. On ne peut pas vendre ce qu'on n'a pas.
+**Règle métier implémentée** :
+- Disponibilité = `qty - reserved`. Tous les résultats sont positifs ou nuls.
 
-**Règle métier actuellement implémentée** :
-- Disponibilité = `qty - reserved` sans borne. Pour CX-330, c'est -5.
-
-**Justification du bug** :
-- C'est intentionnel. Document pédagogique : le test rouge `test_available_qty_never_negative` encode l'invariant attendu et échoue volontairement.
-- Le bug est documenté dans la docstring de `available_qty()` (`inventory/warehouse.py:23-28`).
-- C'est le signal central que ce pilote valide la chaîne d'onboarding, pas un produit livrable.
-
-**Risques** :
-- Un futur appelant qui bornait, affichait ou additionnait cette valeur sans garde produirait un résultat sémantiquement faux.
-- Actuellement atténué : `can_fulfil()` l'absorbe correctement (toute demande >= 0 retourne `False`), mais `picking_list()` incluerait l'article en rupture.
+**Garanties** :
+- `available_qty()` calcule correctement la quantité disponible à la vente.
+- Les données dans `ITEMS` respectent l'invariant `reserved ≤ qty` (validé par un test).
 
 ---
 
@@ -184,8 +178,10 @@ Le modèle simplifié en mémoire porte four articles distincts, chacun une zone
 - Article inexistant : traité comme rupture (`None` → `False`).
 - La faisabilité repose sur la disponibilité nette (`qty - reserved`), pas sur le stock brut.
 
-**Cas héritant du bug** :
-- `can_fulfil("CX-330", 0)` → `-5 >= 0` → `False` (correct par accident : disponibilité négative refuse tout).
+**Cas d'usage nominal** :
+- `can_fulfil("CX-330", 0)` → `40 >= 0` → `True` (article bien disponible).
+- `can_fulfil("CX-330", 40)` → `40 >= 40` → `True` (disponibilité exacte).
+- `can_fulfil("CX-330", 41)` → `40 >= 41` → `False` (rupture, demande > disponible).
 
 **Hypothèses non éprouvées** :
 - Entrées invalides (`requested < 0`, `requested` non-entier) : pas de validation explicite.
@@ -232,8 +228,8 @@ Après tri : [{zone: "A", sku: "CX-330", qty: 10}, {zone: "A", sku: "AX-100", qt
 - La sortie est triée par zone en ordre alphabétique croissant (`"A" < "B" < "C"`).
 - La zone provient du stock, pas de la commande.
 
-**Risques/Limitations actuelles** :
-- **Découplage fonctionnel** : `picking_list()` n'appelle pas `can_fulfil()` et ne vérifie pas la disponibilité. Une commande générée sans passage par `can_fulfil()` préalable peut inclure des articles en rupture.
+**Limitations actuelles** :
+- **Découplage fonctionnel** : `picking_list()` n'appelle pas `can_fulfil()` et ne vérifie pas la disponibilité. Une commande générée sans validation préalable via `can_fulfil()` pourrait inclure des articles en rupture.
 - **Absence d'orchestrateur** : il n'existe aucune fonction qui enchaîne `can_fulfil()` pour chaque ligne, puis `picking_list()` sur les lignes valides. L'appelant doit implémenter cette logique.
 - Aucun test n'existe pour ce parcours.
 
@@ -258,8 +254,8 @@ Pour un pilote, c'est acceptable et documenté comme une limite volontaire.
 - Chaque article n'est dans qu'une seule zone (vrai pour les données actuelles).
 - `available_qty()` rend un résultat répétable pour les mêmes entrées (fonction pure).
 
-**Invariants métier **non** respectés** :
-- ✗ Disponibilité ≥ 0 : violé pour `CX-330` (disponible = -5). Intentionnel, documenté, et testé par test rouge.
+**Invariants métier respectés** :
+- ✓ Disponibilité ≥ 0 : garanti par les données (reserved ≤ qty), validé par test.
 
 **Limitations structurelles non défendues par le code** :
 - **SKU non unique au schéma** : le code ne vérifie ni ne garantit l'unicité. Si deux articles avaient le même SKU, `find_by_sku()` retournerait le premier seulement (comportement implicite, pas garanti).
@@ -285,22 +281,23 @@ Toutes ces omissions sont documentées comme volontaires dans les audits et ques
 
 ---
 
-## Impact du bug sur les parcours
+## Risques résiduels
 
-### Parcours 5 (can_fulfil) : atténué
-- `can_fulfil("CX-330", 0)` retourne `False` (correct en rupture, obtenu par `-5 >= 0`).
-- `can_fulfil("CX-330", -6)` retournerait `True` (incorrect, mais demande invalide).
-- **Résumé** : le bug ne produit pas une autorisation à tort pour des demandes valides (>= 0).
+### Parcours 5 (can_fulfil) : validation nominal
+- `can_fulfil("CX-330", 0)` retourne `True` (disponible 40, demande 0).
+- `can_fulfil("CX-330", 40)` retourne `True` (disponible 40, demande 40).
+- `can_fulfil("CX-330", 41)` retourne `False` (disponible 40, demande 41 → rupture).
+- **Résumé** : comportement nominal, aucun risque documenté.
 
-### Parcours 6 (picking_list) : non atténué
-- Si l'appelant fourni `[("CX-330", 10)]`, la liste de prélèvement inclut l'article sans signal, même si `available_qty = -5`.
-- **Résumé** : le bug peut générer un prélèvement sur un article en rupture si `picking_list()` est appelé sans `can_fulfil()` préalable.
+### Parcours 6 (picking_list) : absence de validation
+- Si l'appelant fournit `[("CX-330", 50)]` (demande > disponible 40), la liste de prélèvement inclut quand même l'article sans signal d'erreur.
+- **Résumé** : `picking_list()` accepte les quantités sans vérification. L'orchestration avec `can_fulfil()` est à la charge de l'appelant.
 
 ---
 
 ## Preuves et documentation
 
 - **Workflows** : `WORKFLOW_CONSULTATION_STOCK.md`, `WORKFLOW_FAISABILITE_COMMANDE.md`, `WORKFLOW_PRELEVEMENT_COMMANDE.md` (lus en intégralité, alignés avec ce CDC).
-- **Code source** : `inventory/warehouse.py` (34 lignes), `inventory/orders.py` (22 lignes) (lus en intégralité).
-- **Tests** : `tests/test_warehouse.py` (22 lignes, couvre partiellement warehouse, zéro sur orders).
+- **Code source** : `inventory/warehouse.py` (29 lignes), `inventory/orders.py` (22 lignes) (lus en intégralité).
+- **Tests** : `tests/test_warehouse.py` (41 lignes, 6 tests, couvre warehouse partiellement, zéro sur orders).
 - **Audits** : fonctionnel, données, architecture, testing, sécurité (tous alignés).
