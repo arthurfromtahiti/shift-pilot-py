@@ -15,13 +15,17 @@ def can_fulfil(sku, requested):
 def picking_list(lines):
     """Transforme des lignes de commande en liste de prélèvement.
 
-    Exclut silencieusement les lignes dont la disponibilité est insuffisante.
-    Les allocations cumulées du même SKU dans la même commande sont prises en compte
-    pour éviter de dépasser le stock disponible.
+    Retourne {"picks": [...], "skipped": [...]}.
+    - picks : lignes servies, triées par zone.
+    - skipped : lignes non servies par stock insuffisant,
+      chaque entrée contient order_id (index dans lines), sku,
+      qty_requested et qty_missing.
+    Les lignes invalides (qty <= 0, SKU inconnu) sont ignorées sans trace.
     """
-    out = []
+    picks = []
+    skipped = []
     allocated = {}
-    for sku, qty in lines:
+    for idx, (sku, qty) in enumerate(lines):
         if qty <= 0:
             continue
         item = find_by_sku(sku)
@@ -29,7 +33,13 @@ def picking_list(lines):
             continue
         remaining = available_qty(item) - allocated.get(sku, 0)
         if qty > remaining:
+            skipped.append({
+                "order_id": idx,
+                "sku": sku,
+                "qty_requested": qty,
+                "qty_missing": qty - remaining,
+            })
             continue
         allocated[sku] = allocated.get(sku, 0) + qty
-        out.append({"sku": sku, "zone": item["zone"], "qty": qty})
-    return sorted(out, key=lambda entry: entry["zone"])
+        picks.append({"sku": sku, "zone": item["zone"], "qty": qty})
+    return {"picks": sorted(picks, key=lambda entry: entry["zone"]), "skipped": skipped}
