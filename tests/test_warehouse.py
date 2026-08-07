@@ -30,6 +30,12 @@ class TestWarehouse(unittest.TestCase):
                 f"SKU {item['sku']} : reserved={item['reserved']} > qty={item['qty']}",
             )
 
+    def test_find_by_sku_insensible_casse(self):
+        # 'ax-100' doit retrouver l'article 'AX-100'
+        self.assertIsNotNone(find_by_sku("ax-100"))
+        self.assertIsNotNone(find_by_sku("Ax-100"))
+        self.assertIsNone(find_by_sku("INEXISTANT"))
+
 
 if __name__ == "__main__":
     unittest.main()
