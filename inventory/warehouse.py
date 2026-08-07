@@ -14,7 +14,7 @@ def list_items():
 
 def find_by_sku(sku):
     for item in ITEMS:
-        if item["sku"] == sku:
+        if item["sku"].upper() == sku.upper():
             return item
     return None
 
