@@ -74,5 +74,19 @@ class TestPickingList(unittest.TestCase):
         self.assertEqual(s["qty_missing"], 5)
 
 
+    def test_meme_article_casse_differente_cumul_respecte(self):
+        # AX-100 : available=10 ; "AX-100" (6) puis "ax-100" (6) → même article
+        # cumul 6+6=12 > 10 → 2e ligne exclue avec qty_missing=2 (remaining=4, demandé=6)
+        result = picking_list([("AX-100", 6), ("ax-100", 6)])
+        self.assertEqual(len(result["picks"]), 1)
+        self.assertEqual(result["picks"][0]["qty"], 6)
+        self.assertEqual(len(result["skipped"]), 1)
+        s = result["skipped"][0]
+        self.assertEqual(s["order_id"], 1)
+        self.assertEqual(s["sku"], "ax-100")
+        self.assertEqual(s["qty_requested"], 6)
+        self.assertEqual(s["qty_missing"], 2)
+
+
 if __name__ == "__main__":
     unittest.main()

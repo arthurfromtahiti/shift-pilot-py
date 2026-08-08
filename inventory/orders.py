@@ -31,7 +31,8 @@ def picking_list(lines):
         item = find_by_sku(sku)
         if item is None:
             continue
-        remaining = available_qty(item) - allocated.get(sku, 0)
+        canonical = item["sku"]
+        remaining = available_qty(item) - allocated.get(canonical, 0)
         if qty > remaining:
             skipped.append({
                 "order_id": idx,
@@ -40,6 +41,6 @@ def picking_list(lines):
                 "qty_missing": qty - remaining,
             })
             continue
-        allocated[sku] = allocated.get(sku, 0) + qty
+        allocated[canonical] = allocated.get(canonical, 0) + qty
         picks.append({"sku": sku, "zone": item["zone"], "qty": qty})
     return {"picks": sorted(picks, key=lambda entry: entry["zone"]), "skipped": skipped}
