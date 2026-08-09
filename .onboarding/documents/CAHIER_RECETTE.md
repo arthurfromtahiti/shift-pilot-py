@@ -15,7 +15,7 @@ Ce cahier de recette énumère les cas de test **dérivés directement des workf
 Pour chaque workflow :
 1. **Cas nominal** : le parcours heureux.
 2. **Cas limites** : valeurs frontières, entrées vides, SKU inconnus, etc.
-3. **Cas dégradés** : comportements attendus sous bug volontaire.
+3. **Cas de robustesse** : comportements attendus face à des entrées malformées ou invalides.
 4. **État de l'implémentation** : ✓ testé, ✗ non testé, ⚠ partiellement testé.
 
 ---
@@ -105,7 +105,7 @@ Pour chaque workflow :
 
 **Propriété assurée** :
 - `available_qty()` retourne toujours ≥ 0 via `max(0, ...)`.
-- Aucun test n'échoue sur cette fonction — le bug volontaire a été corrigé.
+- Tous les tests passent sur cette fonction — la correction de `available_qty()` est validée.
 
 ---
 
@@ -200,7 +200,7 @@ Pour chaque workflow :
 
 ### 3.4 — Cas de robustesse (exploration défensive du code, non testés)
 
-⚠️ **Note** : les cas ci-dessous ne représentent **pas des parcours métier** ni des exigences fonctionnelles. Ils explorent comment le code actuel se comporte face à des entrées malformées. La majorité ont été laissés sans validation intentionnelle (bug volontaire ou choix de conception).
+⚠️ **Note** : les cas ci-dessous ne représentent **pas des parcours métier** ni des exigences fonctionnelles. Ils explorent comment le code actuel se comporte face à des entrées malformées. La plupart correspondent à des choix de conception (ex. déballage strict en Python, pas de validation de schéma) plutôt qu'à des bugs documentés.
 
 | # | Cas | Entrée | Comportement observé | Notes |
 |---|-----|--------|---------|---------|
