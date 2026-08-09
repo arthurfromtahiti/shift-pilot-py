@@ -22,7 +22,7 @@ Deux domaines métier, décrits dans `CARTE_DES_DOMAINES.md` :
 ### Entrepôt-stock (cœur)
 - Référentiel des articles : SKU, label, quantité brute, quantité réservée, zone.
 - Opérations : consultation (par SKU, par zone), calcul de disponibilité à la vente.
-- Porteur du bug volontaire.
+- Historique : un bug initial sur `available_qty()` (absence de borne inférieure) a été corrigé au cours de l'onboarding (implémentation de `max(0, ...)`), et les tests le valident (16 tests verts).
 
 ### Préparation-commande (support)
 - Décision de faisabilité d'une commande pour une quantité demandée.
@@ -82,7 +82,7 @@ Aucune roadmap formelle n'est documentée. Les audits et workflows ont identifi�
 
 - La séparation `warehouse.py / orders.py` est-elle définitive, ou est-elle un découpage exploratoire ?
 - Les zones d'entrepôt (actuellement A, B, C) peuvent-elles évoluer vers des codes multi-caractères (A1, B-12) ? Cela affecte la robustesse du tri lexicographique.
-- **Note historique** : Le bug intentionnel sur `available_qty` (absence de borne inférieure) a été corrigé lors de l'onboarding (implémentation `max(0, ...)`). Les tests assocés passent tous (16 verts).
+- **Évolution notable** : Le bug initial sur `available_qty` (absence de borne inférieure) a été corrigé lors de l'onboarding par implémentation de `max(0, ...)`. La correction est validée par 16 tests verts.
 
 ## Livrables d'onboarding
 
@@ -90,7 +90,7 @@ Ce pilote marque l'accomplissement de l'étape d'onboarding par :
 - ✓ Carte des domaines complète et validée.
 - ✓ Trois workflows documentés et relus (consultation stock, vérification faisabilité, génération prélèvement).
 - ✓ Audits transverses réalisés (fonctionnel, données, architecture, tests, sécurité, hotspots).
-- ✓ Bug volontaire (`available_qty` sans borne inférieure) isolé, corrigé et testé (16 tests verts).
+- ✓ Bug initial sur `available_qty` (absence de borne inférieure) corrigé et testé (16 tests verts).
 - ✓ Documents de référence (contexte, CDC, cartographie code, cahier de recette).
 
 **Hors scope d'onboarding** : couche d'exposition (HTTP, CLI), orchestrateur de commande, couverture de tests complète (notamment `can_fulfil()` non testé directement ; `list_items()` non testé).

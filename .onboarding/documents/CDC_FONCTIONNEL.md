@@ -9,7 +9,7 @@ Deux domaines métier coexistent dans ce pilote de logistique d'entrepôt :
 1. **Entrepôt-Stock** : référentiel en mémoire de quatre articles (SKU, quantité brute, quantité réservée, zone), avec opérations de consultation et calcul de disponibilité à la vente.
 2. **Préparation-Commande** : opérations dérivées pour décider si une commande peut être honorée et générer une liste de prélèvement, avec allocation cross-article pour éviter la surallocation.
 
-La disponibilité à la vente est toujours positive (bornée à zéro via `max(0, ...)`), et la génération de liste de prélèvement respècte l'allocation cumulée par article pour garantir la faisabilité.
+La disponibilité à la vente est toujours non négative (bornée à zéro via `max(0, ...)`), et la génération de liste de prélèvement respècte l'allocation cumulée par article pour garantir la faisabilité.
 
 ---
 

@@ -269,7 +269,7 @@ inventory/orders.py
 | Coverage | ✗ | Pas de `.coveragerc`, `pytest.ini`. |
 | .gitignore | ✗ | `__pycache__/`, `.pyc` sont tracés par git. |
 | Type hints | ✗ | Aucun type hint dans le code source. |
-| Docstrings | ✗ | Seulement dans `available_qty()` (bug volontaire). |
+| Docstrings | ✗ | Seulement dans `available_qty()` (fonction clé pour la disponibilité). |
 
 ---
 

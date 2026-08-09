@@ -34,3 +34,25 @@ Le verdict final affirme « aucune contradiction résiduelle », « chaque affir
 ## Disposition
 
 **Demande de changements.** Le rédacteur doit supprimer/qualifier l’état historique du `PROJECT_CONTEXT.md`, corriger partout la prétendue couverture indirecte de `can_fulfil()`, puis resoumettre le lot et son verdict final pour relecture.
+
+---
+
+## Relecture du septième passage — 2026-08-09
+
+**Verdict : À corriger.** La suite de tests est bien vérifiée : `python3 -m unittest discover -v` donne 16 tests verts. Toutefois, le lot n'est pas encore cohérent avec sa propre attestation finale.
+
+### Écarts bloquants
+
+1. **Trace « bug volontaire » encore présente dans un document de référence.** `documents/PROJECT_CONTEXT.md:93` écrit encore « Bug volontaire (`available_qty` sans borne inférieure) isolé, corrigé et testé ». Cela contredit l'affirmation de `VERDICT_FINAL.md` et `INDEX.md` selon laquelle les quatre documents sont exempts de cette formulation. Si l'historique est conservé, le qualifier explicitement d'historique ; sinon le remplacer par « bug initial corrigé ».
+
+2. **Attestation de vérification fausse.** `INDEX.md:9` affirme que les quatre documents de référence sont exempts de « bug volontaire » et « test rouge », alors que `PROJECT_CONTEXT.md:93` contient encore « bug volontaire ». La preuve textuelle est directement réfutable par `rg`.
+
+3. **Règle fonctionnelle mal formulée dans le CDC.** `CDC_FONCTIONNEL.md:12` indique que la disponibilité est « toujours positive ». Le code et le tableau du document montrent que `BX-220` a une disponibilité de `0`. Employer « toujours non négative » ou « positive ou nulle » ; ne pas présenter cette propriété comme strictement positive.
+
+### Contrôles confirmés
+
+- `inventory/warehouse.py:24` borne effectivement `available_qty()` à zéro.
+- `picking_list()` n'appelle pas `can_fulfil()` ; les documents relus qui le signalent comme non testé sont désormais cohérents sur ce point.
+- `python3 -m unittest discover -v` : 16/16 tests passent.
+
+**Disposition : demande de changements.** Corriger les trois points ci-dessus, puis vérifier les assertions globales du verdict final et de l'index contre le contenu réel des quatre documents avant resoumission.
