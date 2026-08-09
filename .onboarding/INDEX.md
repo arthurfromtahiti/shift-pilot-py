@@ -1,14 +1,16 @@
 # INDEX — .onboarding/shift-pilot-py
 
 Porte d'entrée des artefacts d'onboarding du dépôt **shift-pilot-py**.  
-Générée le 2026-08-03 — onboarding initial complet (27 artefacts, 13 relectures).
+Générée le 2026-08-03 — onboarding initial complet (27 artefacts, 13 relectures).  
+Mise à jour partielle le 2026-08-09 — réconciliation des 3 workflows au SHA `511104b` (carte des domaines déjà réconciliée au même SHA).  
+Corrections post-relecture le 2026-08-09 — (1) référence `CARTE_DES_DOMAINES.md` corrigée en `.onboarding/domaines/CARTE_DES_DOMAINES.md` dans les 3 workflows ; (2) couverture des tests précisée dans `WORKFLOW_PRELEVEMENT_COMMANDE` (règles prouvées par code vs règles exercées par les tests) ; (3) types d'entrée reformulés comme préconditions non validées dans `WORKFLOW_FAISABILITE_COMMANDE`.
 
 | type | domaine | workflow | dépôt | fichier | date | version SHA | niveau de preuve | titre |
 |------|---------|----------|-------|---------|------|-------------|------------------|-------|
 | domaine | entrepot-stock, preparation-commande | | shift-pilot-py | domaines/CARTE_DES_DOMAINES.md | 2026-08-03 | d0097aad221343842317ec06b8a9eed60767ab30 | établi | Carte des 2 domaines fonctionnels (entrepot-stock, preparation-commande) |
-| workflow | entrepot-stock | CONSULTATION_STOCK | shift-pilot-py | workflows/WORKFLOW_CONSULTATION_STOCK.md | 2026-08-03 | d0097aad221343842317ec06b8a9eed60767ab30 | établi | Consultation et calcul de disponibilité du stock d'entrepôt |
-| workflow | preparation-commande | FAISABILITE_COMMANDE | shift-pilot-py | workflows/WORKFLOW_FAISABILITE_COMMANDE.md | 2026-08-03 | d0097aad221343842317ec06b8a9eed60767ab30 | établi | Vérification qu'une commande peut être honorée pour un SKU |
-| workflow | preparation-commande | PRELEVEMENT_COMMANDE | shift-pilot-py | workflows/WORKFLOW_PRELEVEMENT_COMMANDE.md | 2026-08-03 | d0097aad221343842317ec06b8a9eed60767ab30 | établi | Génération de la liste de prélèvement triée par zone |
+| workflow | entrepot-stock | CONSULTATION_STOCK | shift-pilot-py | workflows/WORKFLOW_CONSULTATION_STOCK.md | 2026-08-09 | 511104b96ed8bafce0d5a44bed5a08c0b2550974 | établi | Consultation et calcul de disponibilité du stock d'entrepôt |
+| workflow | preparation-commande | FAISABILITE_COMMANDE | shift-pilot-py | workflows/WORKFLOW_FAISABILITE_COMMANDE.md | 2026-08-09 | 511104b96ed8bafce0d5a44bed5a08c0b2550974 | établi | Vérification qu'une commande peut être honorée pour un SKU |
+| workflow | preparation-commande | PRELEVEMENT_COMMANDE | shift-pilot-py | workflows/WORKFLOW_PRELEVEMENT_COMMANDE.md | 2026-08-09 | 511104b96ed8bafce0d5a44bed5a08c0b2550974 | établi | Génération de la liste de prélèvement triée par zone |
 | audit | entrepot-stock, preparation-commande | | shift-pilot-py | audits/ARCHITECTURE_AUDIT.md | 2026-08-03 | d0097aad221343842317ec06b8a9eed60767ab30 | contient une hypothèse | Audit architecture — structure du dépôt et découpage des modules |
 | audit | entrepot-stock, preparation-commande | | shift-pilot-py | audits/CODE_HOTSPOTS_AUDIT.md | 2026-08-03 | d0097aad221343842317ec06b8a9eed60767ab30 | contient une hypothèse | Audit points chauds du code — complexité et risques techniques |
 | audit | entrepot-stock | | shift-pilot-py | audits/DATA_MODEL_AUDIT.md | 2026-08-03 | d0097aad221343842317ec06b8a9eed60767ab30 | contient une hypothèse | Audit modèle de données — structures et cohérence des données |
