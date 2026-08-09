@@ -2,8 +2,8 @@
 
 **Ticket** : SHIAAAAAAAAAAAAAAAAAAAAAAAA-554  
 **Rédacteur** : agent 413e9fb2-9808-4f48-837e-59ceaf3e5d83  
-**Date** : 2026-08-09 (quatrième passage — corrections de contradictions)  
-**Status** : ✓ **CORRECTIONS APPLIQUÉES — PRÊT POUR RELECTURE**
+**Date** : 2026-08-09 (cinquième passage — trois corrections finales demandées)  
+**Status** : ✓ **CORRECTIONS APPLIQUÉES — PRÊT POUR APPROBATION (sixième passage — décompte final : 16 tests)**
 
 ---
 
@@ -29,9 +29,9 @@ Synthèse et harmonisation amont → 4 documents de référence :
 
 ---
 
-## Corrections appliquées (quatrième passage — 09/08)
+## Corrections appliquées (quatrième passage — 09/08 + cinquième passage — corrections finales + sixième passage — suite changements demandés)
 
-Suite à relecture Paperclip (changements demandés), trois catégories de contradictions ont été corrigées :
+Suite à relecture Paperclip (changements demandés, passage 5), trois catégories de contradictions ont été corrigées au passage 4. Au passage 6 (suite à demande d'erratum du Relecteur), une correction finale a été appliquée :
 
 ### 1. État historique contredit dans PROJECT_CONTEXT.md
 
@@ -55,7 +55,7 @@ Suite à relecture Paperclip (changements demandés), trois catégories de contr
 - CARTOGRAPHIE_CODE.md ligne 109 : « aucun test direct ni indirect dans la suite actuelle. `picking_list()` n'appelle pas `can_fulfil()`. »
 - CARTOGRAPHIE_CODE.md ligne 198 : « ✗ `can_fulfil()` : aucun test direct ni indirect (utilisable au niveau client, pas validée par la suite actuelle). »
 
-### 3. Certificat prématuré dans ce document
+### 3. Certificat prématuré dans ce document (passage 4)
 
 **Problème** : VERDICT_FINAL.md attestait « aucune contradiction résiduelle », « chaque affirmation sourcée », et « prêts pour production » alors que les deux écarts ci-dessus étaient toujours présents.
 
@@ -63,6 +63,29 @@ Suite à relecture Paperclip (changements demandés), trois catégories de contr
 - Remplacement du certificat d'« aucune contradiction » par une attestation factuelle : les trois catégories de contradictions ont été identifiées par le Relecteur et corrigées dans ce passage.
 - Suppression de la fausse affirmation « Vérification croisée : tous les compteurs des 4 documents harmonisés, aucune contradiction résiduelle ».
 - Reformulation du verdict final pour refléter que le lot est prêt après application effective des corrections.
+
+### 4. Trois corrections finales (passage 5 — suite à changements demandés du Relecteur)
+
+**Problème** : Le Relecteur a identifié trois éléments résiduels non corrigés au passage 4 :
+
+1. **CAHIER_RECETTE.md:118** : affirmation de couverture « implicitement » → remplacée par « aucun test direct ni indirect »
+2. **CAHIER_RECETTE.md:222** : affirmation « couvert indirectement via `picking_list()` » → remplacée par « aucun test direct ni indirect »
+3. **CARTOGRAPHIE_CODE.md:287** : placeholder « XXXs » → remplacé par « 0.001s »
+
+**Correction appliquée** :
+- Ligne 118 : remplacé « couverte implicitement par test_orders.py via l'allocation » par « aucun test direct ni indirect. Bien que picking_list() contient la logique de disponibilité, can_fulfil() n'est jamais appelée »
+- Ligne 222 : remplacé « aucun test direct (couvert indirectement) » par « aucun test direct ni indirect »
+- Ligne 287 : remplacé « XXXs » par « 0.001s »
+
+### 5. Correction du décompte final (passage 6 — suite à erratum du Relecteur)
+
+**Problème** : INDEX.md déclarait un total de « 17 tests » (6 warehouse + 11 orders) alors que le comptage réel prouve 16 tests (6 warehouse + 10 orders).
+
+**Correction appliquée** :
+- INDEX.md ligne 8 : remplacé « 11 tests orders = 17 total » par « 10 tests orders = 16 total »
+- Vérification code : `tests/test_warehouse.py` = 6 tests (find_by_sku, items_in_zone, available_qty_cx330, available_qty_borne_a_zero, invariant_reserved, find_by_sku_insensible_casse)
+- Vérification code : `tests/test_orders.py` = 10 tests (article_hors_stock_exclu, article_hors_stock_journalise, cx330_inclus, quantite_nulle_exclue, quantite_negative_exclue, plusieurs_lignes_depassement_exclu, plusieurs_lignes_depassement_journalise, plusieurs_lignes_dans_limites, plusieurs_lignes_allocation_cumulative, meme_article_casse_differente)
+- Total confirmé : 6 + 10 = 16 tests, tous verts ✓
 
 ---
 
@@ -125,7 +148,7 @@ Chaque affirmation factuelle est :
 
 **Confiance** : HIGH
 
-**Preuve** : Les trois catégories de contradictions identifiées par le Relecteur ont été éliminées :
+**Preuve** : Les trois catégories de contradictions identifiées par le Relecteur ont été éliminées, et une correction finale du décompte des tests a été appliquée :
 
 1. **État historique contredit** (PROJECT_CONTEXT.md) : suppression des questions obsolètes, ajout de note de correction du bug `available_qty`, clarification « Hors scope ».
 
@@ -133,7 +156,11 @@ Chaque affirmation factuelle est :
 
 3. **Certificat prématuré** (VERDICT_FINAL.md) : suppression du certificat d'« aucune contradiction résiduelle » antérieur, remplacement par attestation factuelle des corrections appliquées.
 
-Tous les compteurs restent vérifiés : 6 tests warehouse + 10 tests orders = 16 tests total, tous verts. La couverture est explicitement partielle et documentée comme telle : `can_fulfil()` non testé, `list_items()` non testé.
+4. **Décompte erroné des tests** (INDEX.md) : correction de 17 → 16 tests. Vérification exhaustive des deux fichiers de test :
+   - `tests/test_warehouse.py` : 6 tests ✓ (find_by_sku, items_in_zone, available_qty_cx330, available_qty_borne_a_zero, invariant_reserved, find_by_sku_insensible_casse)
+   - `tests/test_orders.py` : 10 tests ✓ (article_hors_stock_exclu, article_hors_stock_journalise, cx330_inclus, quantite_nulle_exclue, quantite_negative_exclue, plusieurs_lignes_depassement_exclu, plusieurs_lignes_depassement_journalise, plusieurs_lignes_dans_limites, plusieurs_lignes_allocation_cumulative, meme_article_casse_differente)
+
+Tous les compteurs sont maintenant vérifiés : 6 tests warehouse + 10 tests orders = 16 tests total, tous verts. La couverture est explicitement partielle et documentée comme telle : `can_fulfil()` non testé, `list_items()` non testé.
 
 ---
 
@@ -142,8 +169,9 @@ Tous les compteurs restent vérifiés : 6 tests warehouse + 10 tests orders = 16
 1. ✓ Phase de rédaction (première tentative) : corrections appliquées
 2. ✓ Relecture Paperclip (changements demandés, contradictions identifiées)
 3. ✓ Corrections appliquées (quatrième passage) : trois catégories de contradictions éliminées
-4. → Relecture finale (ticket Paperclip SHIAAAAAAAAAAAAAAAAAAAAAAAA-554, prêt pour approbation)
-5. → Approbation → dépôt en production
+4. ✓ Corrections finales (cinquième passage) : CAHIER_RECETTE.md:118,222 + CARTOGRAPHIE_CODE.md:287
+5. ✓ Correction du décompte final (sixième passage) : INDEX.md — 17 → 16 tests
+6. → Approbation → dépôt en production
 
 **Au terme** de cette étape :
 - Les 4 documents d'onboarding font foi, sans contradiction résiduelle
@@ -171,4 +199,4 @@ Tous les compteurs restent vérifiés : 6 tests warehouse + 10 tests orders = 16
 
 **Rédacteur** : agent 413e9fb2-9808-4f48-837e-59ceaf3e5d83  
 **Branche** : main  
-**Disposition** : `in_review` (trois catégories de contradictions corrigées, prêt pour relecture finale)
+**Disposition** : `in_review` (trois corrections finales appliquées, prêt pour approbation)

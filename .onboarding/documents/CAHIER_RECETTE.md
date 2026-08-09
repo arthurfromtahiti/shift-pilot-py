@@ -115,7 +115,7 @@ Pour chaque workflow :
 **Domaine** : `preparation-commande`  
 **Fonction testée** : `can_fulfil(sku, requested)`
 
-**État actuel** : cette fonction est couverte **implicitement** par `test_orders.py` via l'allocation dans `picking_list()`. Aucun test direct, mais la logique est validée indirectement.
+**État actuel** : aucun test direct ni indirect. Bien que `picking_list()` contient la logique de disponibilité, `can_fulfil()` n'est jamais appelée dans la suite de test.
 
 ### 2.1 — Vérification nominale
 
@@ -219,7 +219,7 @@ Pour chaque workflow :
 - ✗ `list_items` : pas de test.
 
 ### Domaine préparation-commande
-- ✗ `can_fulfil` : **aucun test direct** (couvert indirectement via `picking_list()`).
+- ✗ `can_fulfil` : **aucun test direct ni indirect**.
 - ✓ `picking_list` : **10 tests couvrant allocation, surallocation, casse insensible, pénuries**.
 
 ---

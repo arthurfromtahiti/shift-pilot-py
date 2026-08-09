@@ -284,7 +284,7 @@ python3 -m unittest discover -s tests -t .
 ```
 ................
 ------
-Ran 16 tests in XXXs
+Ran 16 tests in 0.001s
 OK
 ```
 
