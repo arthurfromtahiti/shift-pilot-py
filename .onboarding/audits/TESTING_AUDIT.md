@@ -8,7 +8,7 @@ La suite de tests est composée de deux fichiers (`tests/test_warehouse.py`, 41 
 
 ## Résumé exécutif
 
-Seize tests total : six sur `warehouse.py` (tous verts), dix sur `orders.py` (couvrant `picking_list()`). La qualité des tests existants est correcte pour leur périmètre : ils couvrent les cas nominaux, les cas critiques de disponibilité insuffisante, le cumul intra-commande (après le correctif SHIAAAAAAAAAAAAAAAAAAAAAAAA-316), la journalisation des lignes non servies (SHIAAAAAAAAAAAAAAAAAAAAAAAA-442), et l'insensibilité à la casse dans le cumul (SHIAAAAAAAAAAAAAAAAAAAAAAAA-507). La couverture de `orders.py` s'est sensiblement améliorée — `picking_list()` a dix tests. `can_fulfil()` reste entièrement non testée. Il n'existe ni CI, ni configuration de coverage, ni lint. Les `__pycache__/` ne sont pas ignorés par git (absence de `.gitignore`).
+OBSERVÉ : seize tests au total, tous passants (`python3 -m unittest discover -s tests -t .` → `Ran 16 tests in 0.001s — OK`) — six sur `warehouse.py`, dix sur `orders.py` (couvrant `picking_list()`). La qualité des tests existants est correcte pour leur périmètre : ils couvrent les cas nominaux, les cas critiques de disponibilité insuffisante, le cumul intra-commande (après le correctif SHIAAAAAAAAAAAAAAAAAAAAAAAA-316), la journalisation des lignes non servies (SHIAAAAAAAAAAAAAAAAAAAAAAAA-442), et l'insensibilité à la casse dans le cumul (SHIAAAAAAAAAAAAAAAAAAAAAAAA-507). La couverture de `orders.py` s'est sensiblement améliorée — `picking_list()` a dix tests. `can_fulfil()` reste entièrement non testée. Il n'existe ni CI, ni configuration de coverage, ni lint. Les `__pycache__/` ne sont pas ignorés par git (absence de `.gitignore`).
 
 ## Constats détaillés
 
@@ -30,7 +30,9 @@ Seize tests total : six sur `warehouse.py` (tous verts), dix sur `orders.py` (co
 
 **VÉRIFIÉ_CODE — Aucune configuration de couverture.** Pas de `.coveragerc`, `pytest.ini`, `setup.cfg` ni équivalent. Aucun outil de mesure de couverture (`coverage.py`, `pytest-cov`) n'est configuré.
 
-**VÉRIFIÉ_CODE — Pas de `.gitignore`.** Les répertoires `__pycache__/` et fichiers `.pyc` ne sont pas ignorés par git. Ils apparaissent dans `git status` (`inventory/__pycache__/__init__.cpython-313.pyc`, `tests/__pycache__/…`). Note : les `.pyc` en cache sont Python 3.13, alors que la carte des domaines mentionne 3.12 (les deux environnements ont peut-être co-existé).
+**VÉRIFIÉ_CODE — Pas de `.gitignore` dans l'arborescence.** Aucun fichier `.gitignore` n'est présent dans le dépôt (inventaire complet effectué). Les répertoires `__pycache__/` et fichiers `.pyc` ne sont donc pas exclus du suivi git.
+
+**OBSERVÉ — Fichiers `.pyc` non suivis listés dans `git status`.** `git status` rapporte les fichiers suivants comme non suivis : `inventory/__pycache__/__init__.cpython-313.pyc`, `inventory/__pycache__/orders.cpython-313.pyc`, `inventory/__pycache__/warehouse.cpython-313.pyc`, `tests/__pycache__/__init__.cpython-313.pyc`, `tests/__pycache__/test_orders.cpython-313.pyc`, `tests/__pycache__/test_warehouse.cpython-313.pyc`. Note : les `.pyc` sont compilés pour Python 3.13, alors que la carte des domaines mentionne 3.12 (les deux environnements ont peut-être co-existé).
 
 ## Forces
 

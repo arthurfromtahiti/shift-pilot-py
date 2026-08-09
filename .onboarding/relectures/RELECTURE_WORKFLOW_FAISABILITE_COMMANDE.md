@@ -1,21 +1,19 @@
 # Relecture — WORKFLOW_FAISABILITE_COMMANDE.md
 
 ## Verdict global
-Bon — les erreurs de raisonnement relevées au tour précédent sur `requested=0` et `requested<0` ont été corrigées. Le workflow décrit maintenant exactement la garde `item is None` puis la comparaison `available_qty(item) >= requested`, sans inventer de comportement non visible dans le code.
+Bon — la séquence de `can_fulfil`, ses règles, ses limites d'entrée et la traçabilité sont conformes au code courant.
 
 ## Problèmes bloquants
-Aucun.
+- Aucun.
 
 ## Problèmes mineurs
-Aucun.
+- Aucun.
 
 ## Points vérifiés et corrects
-- Le point d'entrée et les cinq étapes principales collent à `can_fulfil` : recherche par SKU, retour `False` si `item is None`, puis comparaison finale sur `available_qty(item)` (`inventory/orders.py:6-10`).
-- La règle "SKU inconnu -> False" est exacte (`inventory/orders.py:8-9`).
-- La règle de faisabilité "disponibilité nette >= quantité demandée" est correctement formulée à partir du code réel (`inventory/orders.py:10`, `inventory/warehouse.py:29`).
-- Le traitement du bug `available_qty` est désormais calculé correctement : pour `CX-330`, la disponibilité vaut `-5`, ce qui refuse toute demande `requested >= -5` et n'autorise que des valeurs strictement inférieures à `-5`, faute de validation d'entrée (`inventory/warehouse.py:5-7`, `inventory/warehouse.py:29`, `inventory/orders.py:10`).
-- Le document distingue correctement deux sujets : l'invariant violé par `available_qty` et l'absence de validation de `requested` (`inventory/warehouse.py:23-29`, `inventory/orders.py:6-10`).
-- L'absence de tests sur `inventory/orders.py` est prouvée : `tests/test_warehouse.py` n'importe que `inventory.warehouse` (`tests/test_warehouse.py:3`).
+- La garde `requested <= 0`, la recherche, le rejet de `None`, puis la comparaison sur la disponibilité sont exactement ceux du code (`inventory/orders.py:6-12`).
+- La disponibilité dépend de `max(0, qty - reserved)` (`inventory/warehouse.py:22-24`).
+- `find_by_sku` est insensible à la casse (`inventory/warehouse.py:15-19`).
+- L'absence de test direct de `can_fulfil` est vérifiée : `tests/test_orders.py:3` importe seulement `picking_list`, et le fichier ne contient aucun test de `can_fulfil`.
 
 ## Recommandations de correction
 Aucune.

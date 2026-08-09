@@ -12,7 +12,7 @@ Le code est cohérent avec les workflows documentés — chaque comportement dé
 
 ## Constats détaillés
 
-**VÉRIFIÉ_CODE — Workflow CONSULTATION_STOCK : couverture complète.** Les quatre fonctions décrites dans le workflow (`list_items`, `find_by_sku`, `available_qty`, `items_in_zone`) existent et se comportent comme documenté (`inventory/warehouse.py:11-28`). `available_qty()` retourne `max(0, item["qty"] - item["reserved"])` (`inventory/warehouse.py:24`) — le correctif SHIAAAAAAAAAAAAAAAAAAAAAAAA-231 est appliqué, l'invariant `disponible ≥ 0` est garanti. Le workflow réconcilié (WORKFLOW_CONSULTATION_STOCK.md) confirme l'absence du bug. Pas d'écart entre description et implémentation.
+**VÉRIFIÉ_CODE — Workflow CONSULTATION_STOCK : couverture complète.** Les quatre fonctions décrites dans le workflow (`list_items`, `find_by_sku`, `available_qty`, `items_in_zone`) existent et leur code source est cohérent avec le workflow documenté (`inventory/warehouse.py:11-28`). `available_qty()` retourne `max(0, item["qty"] - item["reserved"])` (`inventory/warehouse.py:24`) — le correctif SHIAAAAAAAAAAAAAAAAAAAAAAAA-231 est appliqué, l'invariant `disponible ≥ 0` est garanti. Le workflow réconcilié (WORKFLOW_CONSULTATION_STOCK.md) confirme l'absence du bug. Pas d'écart entre description et implémentation.
 
 **VÉRIFIÉ_CODE — Workflow FAISABILITE_COMMANDE : couverture complète.** `can_fulfil(sku, requested)` existe (`inventory/orders.py:6-12`), appelle `find_by_sku` puis `available_qty`, retourne un booléen. Le comportement sur SKU inconnu (retour `False`) est implémenté (`inventory/orders.py:9-11`). `available_qty()` retourne `max(0, qty - reserved)` — pas de bug hérité actif. Le workflow réconcilié confirme l'absence du bug. Pas d'écart entre description et implémentation.
 
@@ -44,7 +44,7 @@ Le code est cohérent avec les workflows documentés — chaque comportement dé
 
 ## Risques
 
-- **VÉRIFIÉ_CODE — Vérification de faisabilité intégrée à `picking_list()`.** Après le correctif SHIAAAAAAAAAAAAAAAAAAAAAAAA-316, `picking_list()` vérifie la disponibilité via un dict `allocated` cumulatif (sans appel à `can_fulfil()`) et exclut les articles non faisables. Un appelant qui appelle `picking_list()` directement obtiendra une liste de prélèvement garantie faisable pour les quantités demandées, en tenant compte du cumul intra-commande (tant que le stock ne change pas entre l'appel et l'utilisation). Le risque antérieur est éliminé.
+- **VÉRIFIÉ_CODE — Vérification de faisabilité intégrée à `picking_list()`.** Après le correctif SHIAAAAAAAAAAAAAAAAAAAAAAAA-316, `picking_list()` vérifie la disponibilité via un dict `allocated` cumulatif (sans appel à `can_fulfil()`) et exclut les articles non faisables. D'après le code lu, un appelant qui appelle `picking_list()` directement obtiendra une liste de prélèvement structurellement cohérente avec le stock disponible au moment de l'appel — les articles en rupture sont exclus et les SKUs dupliqués sont cumulés. Cette propriété est garantie par la logique lue dans le code source (`inventory/orders.py:15-46`) ; elle n'a pas été vérifiée par exécution dans cet audit. Le risque antérieur est éliminé d'après la lecture du code.
 - **HYPOTHÈSE — Données périmées dès le premier prélèvement réel.** `ITEMS` ne se met jamais à jour : après un prélèvement réel de 10 unités d'`AX-100`, le stock reste affiché à 12. Pour un pilote de démonstration, c'est attendu ; pour un usage réel, c'est une incohérence fonctionnelle critique.
 
 ## Recommandations priorisées
