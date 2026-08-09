@@ -6,7 +6,7 @@
 
 Ce cahier de recette énumère les cas de test **dérivés directement des workflows métier** documentés en étape 2. Chaque cas est tracé à un workflow, à une fonction code, et à un objectif métier. Le but est de guider la création d'une suite de test complète couvrant tous les domaines.
 
-**État actuel** : 17 tests existent et passent. `tests/test_warehouse.py` contient 6 tests (warehouse), et `tests/test_orders.py` contient 11 tests (orders picking_list). La couverture fonctionnelle est **partielle** : le domaine entrepôt-stock a des tests sur `find_by_sku()` et `items_in_zone()`, mais le domaine préparation-commande manque de tests directs sur `can_fulfil()` (voir section 2, État actuel).
+**État actuel** : 16 tests existent et passent. `tests/test_warehouse.py` contient 6 tests (warehouse), et `tests/test_orders.py` contient 10 tests (orders picking_list). La couverture fonctionnelle est **partielle** : le domaine entrepôt-stock a des tests sur `find_by_sku()` et `items_in_zone()`, mais le domaine préparation-commande manque de tests directs sur `can_fulfil()` (voir section 2, État actuel).
 
 ---
 
@@ -154,7 +154,7 @@ Pour chaque workflow :
 
 **Signature actuelle** : `picking_list(lines) → {picks: [dict], skipped: [dict]}`
 
-**État actuel** : **11 tests** couvrent ce workflow complètement dans `test_orders.py`.
+**État actuel** : **10 tests** couvrent ce workflow complètement dans `test_orders.py`.
 
 ### 3.1 — Cas nominal
 
@@ -220,7 +220,7 @@ Pour chaque workflow :
 
 ### Domaine préparation-commande
 - ✗ `can_fulfil` : **aucun test direct** (couvert indirectement via `picking_list()`).
-- ✓ `picking_list` : **11 tests couvrant allocation, surallocation, casse insensible, pénuries**.
+- ✓ `picking_list` : **10 tests couvrant allocation, surallocation, casse insensible, pénuries**.
 
 ---
 

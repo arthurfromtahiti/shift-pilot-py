@@ -176,7 +176,7 @@ def picking_list(lines):
 
 **Portée** : Couvre `inventory/orders.py` en intégralité.
 
-**Suite** : Classe `TestPickingList` (unittest) avec 11 méthodes testant `picking_list()`.
+**Suite** : Classe `TestPickingList` (unittest) avec 10 méthodes testant `picking_list()`.
 
 **Tests clés** :
 
@@ -194,7 +194,7 @@ def picking_list(lines):
 | `test_meme_article_casse_differente_cumul_respecte` | Casse insensible pour allocation | "AX-100" + "ax-100" → cumul de 6+6 > 10 → 2e exclue |
 
 **Couverture** :
-- ✓ `picking_list()` : couverture complète (11 tests : multi-lignes, casse, surallocation, signalement, pénuries).
+- ✓ `picking_list()` : couverture complète (10 tests : multi-lignes, casse, surallocation, signalement, pénuries).
 - ✗ `can_fulfil()` : pas de test direct (utilisable au niveau client, couvert indirectement via l'allocation dans `picking_list()`).
 
 ---
@@ -243,7 +243,7 @@ inventory/orders.py
 - `picking_list()` — ignore silencieusement les demandes nulles/négatives et SKU inconnus (par conception).
 
 **Zones de couverture** :
-- Warehouse : 3 tests couvrent les fonctions principales (recherche, filtrage, disponibilité).
+- Warehouse : 6 tests couvrent find_by_sku, items_in_zone, available_qty (robustesse et non-negativité).
 - Orders : 10 tests couvrent `picking_list()` en profondeur (allocation, surallocation, multi-lignes, casse).
 
 ---
@@ -282,13 +282,13 @@ python3 -m unittest discover -s tests -t .
 
 **Sortie observée** :
 ```
-.................
+................
 ------
-Ran 17 tests in XXXs
+Ran 16 tests in XXXs
 OK
 ```
 
-- 17 points = 17 tests verts (6 warehouse + 11 orders).
+- 16 points = 16 tests verts (6 warehouse + 10 orders).
 - Tous les tests passent. `available_qty()` est sécurisée via `max(0, ...)`.
 
 ---
@@ -332,8 +332,8 @@ Si ce pilote évolue, les points chauds seront :
 - ✓ Aucun écart entre description et implémentation.
 
 **Cohérence code-tests** :
-- ✓ Les 13 tests exécutent le code décrit.
-- ✓ Couverture complète : `warehouse.py` (3 tests) + `orders.py` (10 tests).
+- ✓ Les 16 tests exécutent le code décrit.
+- ✓ Couverture partielle : `warehouse.py` (6 tests : find_by_sku, items_in_zone, available_qty) + `orders.py` (10 tests : picking_list complet, can_fulfil non testé).
 
 **Cohérence code-domaines** :
 - ✓ Deux modules, deux domaines.
@@ -344,13 +344,13 @@ Si ce pilote évolue, les points chauds seront :
 ## Résumé technique pour un futur développeur
 
 - **Stack** : Python 3.12 stdlib, aucun framework, aucune dépendance.
-- **Entrée** : lancer `python3 -m unittest discover -s tests -t .` → 17 tests verts.
+- **Entrée** : lancer `python3 -m unittest discover -s tests -t .` → 16 tests verts.
 - **Cœur** : `inventory/warehouse.py` (4 fonctions : stock, recherche, zone, disponibilité) + `inventory/orders.py` (2 fonctions : vérification, prélèvement).
 - **Data** : 4 articles en dur dans `ITEMS` (stock modifiable).
 - **Architecture** : dépendance unidirectionnelle warehouse → orders, aucune abstraction, aucune persistance.
 - **Points clés** : 
   - `available_qty()` garantit une disponibilité ≥ 0 via `max(0, ...)`.
-  - `picking_list()` suit l'allocation cumulée par article, signale les pénuries (11 tests).
+  - `picking_list()` suit l'allocation cumulée par article, signale les pénuries (10 tests).
   - `find_by_sku()` insensible à la casse.
-- **Couverture** : 6 tests warehouse + 11 tests orders = 17 tests au total. `can_fulfil()` sans test direct mais utilisable au niveau client.
+- **Couverture** : 6 tests warehouse + 10 tests orders = 16 tests au total. `can_fulfil()` sans test direct mais utilisable au niveau client.
 - **Prochaine étape probable** : ajouter une couche HTTP (API REST) ou une persistance (base de données).

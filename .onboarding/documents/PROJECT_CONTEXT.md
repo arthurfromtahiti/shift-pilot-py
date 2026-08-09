@@ -55,14 +55,14 @@ Le modèle de données est implicite — une liste Python de dicts sans schéma 
 
 ### État actuel des tests
 - `inventory/warehouse.py` : 6 tests exécutés (tous verts).
-- `inventory/orders.py` : 11 tests exécutés (tous verts, couvrant `picking_list()` en intégralité).
-- **Total** : 17 tests. **Couverture** : `picking_list()` complètement couverte ; `can_fulfil()` couverte indirectement via l'allocation dans `picking_list()`, pas d'appel direct.
+- `inventory/orders.py` : 10 tests exécutés (tous verts, couvrant `picking_list()` en intégralité).
+- **Total** : 16 tests. **Couverture** : `picking_list()` complètement couverte ; `can_fulfil()` n'a aucun test direct (pas appelée dans la suite de test, utilisable au niveau du client).
 
 ## Dépôt et source de vérité
 
 Le dépôt est complet et auto-contenu :
 - Code source : `inventory/warehouse.py` (29 lignes), `inventory/orders.py` (47 lignes).
-- Tests : `tests/test_warehouse.py` (42 lignes, 6 tests), `tests/test_orders.py` (92 lignes, 11 tests).
+- Tests : `tests/test_warehouse.py` (42 lignes, 6 tests), `tests/test_orders.py` (92 lignes, 10 tests).
 - Documentation : `README.md` (15 lignes), `CARTE_DES_DOMAINES.md` (61 lignes).
 - Aucune dépendance externe, aucune base de données.
 
