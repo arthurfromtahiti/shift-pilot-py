@@ -260,6 +260,7 @@ Pour un pilote, c'est acceptable et documenté comme une limite volontaire.
 - Chaque article a un SKU unique au sein du jeu de données actuel (vrai pour les 4 articles).
 - Chaque article n'est dans qu'une seule zone (vrai pour les données actuelles).
 - `available_qty()` rend un résultat répétable pour les mêmes entrées (fonction pure).
+- Disponibilité ≥ 0 pour tous les articles, y compris les cas limites (`CX-330` → 0).
 
 **Invariants métier respectés** :
 - ✓ Disponibilité ≥ 0 : garantie par `max(0, item["qty"] - item["reserved"])` dans `available_qty()`.
