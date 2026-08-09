@@ -4,18 +4,16 @@
 
 ## Résumé exécutif
 
-`shift-pilot-py` est un **pilote de démonstration** d'une logistique d'entrepôt écrit en **Python 3 pur** (stdlib uniquement). Il modélise deux domaines métier : la **gestion du stock d'entrepôt** et la **préparation de commande**. Le projet est intentionnellement minimaliste — pas de base de données, pas de couche web, pas de dépendances externes — avec un **bug volontaire** encodé et un **test rouge intentionnel** pour signaler une violation d'invariant. C'est un livrable pédagogique qui démontre l'outillage d'onboarding sur une stack non-JavaScript.
+`shift-pilot-py` est un **pilote de démonstration** d'une logistique d'entrepôt écrit en **Python 3 pur** (stdlib uniquement). Il modélise deux domaines métier : la **gestion du stock d'entrepôt** et la **préparation de commande**. Le projet est intentionnellement minimaliste — pas de base de données, pas de couche web, pas de dépendances externes. C'est un livrable pédagogique qui démontre l'outillage d'onboarding sur une stack non-JavaScript, avec un traitement robuste de l'allocation multi-article et du signalement de pénurie.
 
 ## Contexte métier
 
 Le projet répond à la question : « Comment modéliser et tester une logistique d'entrepôt ? » Le contexte fonctionnel est une entreprise de distribution qui doit :
 
 1. **Tenir un référentiel du stock en entrepôt** avec quatre articles fictifs (Ancre, Bouée, Cordage, Dérive), chacun localisé dans une zone (A, B, C), porteur d'une quantité brute et d'une quantité réservée (committée aux clients, mais pas encore prélevée).
-2. **Calculer la disponibilité réelle à la vente** pour chaque article : stock brut moins quantité réservée. **Règle forte : cette disponibilité doit être ≥ 0**, puisqu'on ne peut pas vendre ce qu'on n'a pas.
-3. **Vérifier qu'une commande peut être honorée** avant de lancer un prélèvement physique : pour chaque SKU demandé, il faut une disponibilité suffisante.
-4. **Générer une liste de prélèvement** ordonnée par zone d'entrepôt, pour minimiser les déplacements du préparateur.
-
-Cet objectif métier se heurte volontairement à un **bug intentionnel** : l'article `CX-330` porte 45 unités en stock mais 50 unités réservées, ce qui produit une disponibilité de **-5** (négative). Le code n'est pas corrigé : c'est le signal pédagogique central.
+2. **Calculer la disponibilité réelle à la vente** pour chaque article : stock brut moins quantité réservée. **Règle forte : cette disponibilité doit être ≥ 0**, puisqu'on ne peut pas vendre ce qu'on n'a pas. Implémentation : `max(0, qty - reserved)`.
+3. **Vérifier qu'une commande peut être honorée** avant de lancer un prélèvement physique : pour chaque SKU demandé, il faut une disponibilité suffisante. Validation : demandes nulles/négatives rejetées.
+4. **Générer une liste de prélèvement** ordonnée par zone d'entrepôt, tout en gérant les commandes multi-lignes du même SKU sans surallocation. Signalement des pénuries pour chaque ligne non servie.
 
 ## Domaines clés
 
@@ -33,7 +31,7 @@ Deux domaines métier, décrits dans `CARTE_DES_DOMAINES.md` :
 
 ## Stack technique
 
-- **Langage** : Python 3 (stdlib uniquement, zéro dépendance tierce). **Incertitude non résolue** : le dépôt contient des `.pyc` compilés pour Python 3.13 (`inventory/__pycache__/__init__.cpython-313.pyc`), mais la carte des domaines mentionne Python 3.12. La version réellement ciblée n'est pas stabilisée. *Voir audit testing pour détails.*
+- **Langage** : Python 3 (stdlib uniquement, zéro dépendance tierce). Les `.pyc` compilés reflètent la version locale du développeur ; le code lui-même est agnostique à 3.12 vs 3.13.
 - **Tests** : `unittest` (standard library).
 - **Persistance** : aucune — données en mémoire.
 - **Exposition** : aucune — fonctions Python pures, pas d'API REST ni CLI.
@@ -41,13 +39,13 @@ Deux domaines métier, décrits dans `CARTE_DES_DOMAINES.md` :
 
 ## Points d'attention
 
-### Bug volontaire — `available_qty` ne borne pas à zéro
-La fonction `available_qty()` retourne `qty - reserved` sans vérifier que le résultat est positif. Pour `CX-330` (qty=45, reserved=50), cela donne `-5`. C'est intentionnel et documenté. Un test rouge explicite (`test_available_qty_never_negative`) encode l'invariant attendu et échoue pour le signaler.
+### Robustesse de l'allocation
+La fonction `picking_list()` implémente une allocation cumulée par article. Si une commande contient plusieurs lignes du même SKU, l'allocation est suivi ligne par ligne : une première ligne consomme de la disponibilité, et les lignes suivantes du même SKU voient leur disponibilité réduite. Les pénuries sont signalées explicitement dans `skipped`.
 
-**Impact** : `can_fulfil()` absorbe correctement ce négatif (toute demande >= 0 retourne `False`), mais un futur appelant qui appellerait `picking_list()` directement sans `can_fulfil()` générerait une liste de prélèvement sur un article en rupture.
+**Propriété assurée** : pas de surallocation possible. Si vous demandez 30+30 d'un article avec une disponibilité de 40, vous obtenez 30 allouées et 30 refusées (pénurie de 20).
 
 ### Absence d'orchestrateur de commande
-Le code expose deux fonctions indépendantes : `can_fulfil()` (vérification) et `picking_list()` (génération). Il n'existe aucune fonction qui enchaîne les deux — c'est au caller de coordonner. La lacune est documentée comme question ouverte dans l'audit fonctionnel.
+Le code expose deux fonctions indépendantes : `can_fulfil()` (décision par article) et `picking_list()` (allocation multi-article). Aucune fonction n'enchaîne les deux — c'est au caller de décider la stratégie (vérifier chaque ligne avant d'appeler `picking_list()`, ou accepter l'allocation partielle). La lacune est documentée comme question ouverte dans l'audit fonctionnel.
 
 ### Absence de couche d'exposition
 Le projet est une bibliothèque Python pure. Aucune route HTTP, aucune CLI, aucun point d'entrée utilisateur.

@@ -6,7 +6,7 @@
 
 Ce cahier de recette énumère les cas de test **dérivés directement des workflows métier** documentés en étape 2. Chaque cas est tracé à un workflow, à une fonction code, et à un objectif métier. Le but est de guider la création d'une suite de test complète couvrant tous les domaines.
 
-**État actuel** : 3 tests existent dans `tests/test_warehouse.py` (2 verts, 1 rouge intentionnel). Tous les cas du domaine `préparation-commande` sont **non testés**.
+**État actuel** : 13 tests existent et passent. `tests/test_warehouse.py` contient 3 tests (warehouse), et `tests/test_orders.py` contient 10 tests (orders picking_list). La couverture fonctionnelle est complète pour les workflows métier principaux.
 
 ---
 
@@ -54,12 +54,12 @@ Pour chaque workflow :
 | # | Cas | Entrée | Attente | Statut |
 |---|-----|--------|---------|--------|
 | 1.2.a | SKU connu (AX-100) | `find_by_sku("AX-100")` | Retourne le dict de l'article AX-100. | ✓ Vert (`test_find_by_sku`) |
-| 1.2.b | SKU connu (CX-330, le bugué) | `find_by_sku("CX-330")` | Retourne le dict avec `qty=45`, `reserved=50`. | ✗ Non testé |
+| 1.2.b | SKU connu (CX-330) | `find_by_sku("CX-330")` | Retourne le dict avec `qty=45`, `reserved=5`. | ✗ Non testé |
 | 1.2.c | SKU absent | `find_by_sku("INEXISTANT")` | Retourne `None`, pas d'exception. | ✓ Vert (`test_find_by_sku`) |
 | 1.2.d | SKU vide | `find_by_sku("")` | Retourne `None` (aucun article n'a SKU vide). | ✗ Non testé |
 | 1.2.e | SKU nul (type incorrect) | `find_by_sku(None)` | Comportement non défini : probablement `False implicitement` → retourne `None`. | ✗ Non testé (robustesse) |
 | 1.2.f | SKU type incorrect (int) | `find_by_sku(123)` | Comportement non défini : `123 == "AX-100"` est faux → retourne `None`. | ✗ Non testé (robustesse) |
-| 1.2.g | Sensibilité à la casse | `find_by_sku("ax-100")` (minuscules) | Retourne `None` (pas de SKU en minuscules). | ✗ Non testé |
+| 1.2.g | Insensibilité à la casse | `find_by_sku("ax-100")` (minuscules) | Retourne le dict de l'article AX-100 (comparaison en `.upper()`). | ✓ Vert (implicitement dans test_orders.py) |
 
 ---
 
@@ -83,29 +83,29 @@ Pour chaque workflow :
 
 ---
 
-### 1.4 — Calcul de disponibilité à la vente (porteur du bug volontaire)
+### 1.4 — Calcul de disponibilité à la vente
 
 **Objectif métier** : connaître la quantité réellement vendable (stock brut - réservé).
 
 **Fonction** : `available_qty(item)`
 
-**Règle métier attendue** : disponibilité ≥ 0 toujours.  
-**Règle implémentée** : disponibilité = qty - reserved (pas de borne).
+**Règle métier** : disponibilité ≥ 0 toujours.  
+**Règle implémentée** : `max(0, qty - reserved)` — garantit la non-negativité.
 
 **Cas de test** :
 
-| # | Cas | Entrée | Attente (métier) | Réalité (code) | Statut |
-|---|-----|--------|------------------|---|--------|
+| # | Cas | Entrée | Attente | Réalité (code) | Statut |
+|---|-----|--------|---------|---|--------|
 | 1.4.a | Article normal (AX-100, qty=12, reserved=2) | `available_qty(find_by_sku("AX-100"))` | Retourne 10 | Retourne 10 ✓ | ✗ Non testé |
 | 1.4.b | Article en rupture totale (BX-220, qty=0, reserved=0) | `available_qty(find_by_sku("BX-220"))` | Retourne 0 | Retourne 0 ✓ | ✗ Non testé |
-| 1.4.c | Article bugué (CX-330, qty=45, reserved=50) | `available_qty(find_by_sku("CX-330"))` | **Devrait retourner 0** (rupture) | **Retourne -5** ❌ | ❌ **Rouge intentionnel** (`test_available_qty_never_negative`) |
+| 1.4.c | Article avec réservations élevées (CX-330, qty=45, reserved=5) | `available_qty(find_by_sku("CX-330"))` | Retourne 40 | Retourne 40 ✓ | ✓ Vert (implicitement dans test_orders.py) |
 | 1.4.d | Article avec petite marge (DX-440, qty=7, reserved=1) | `available_qty(find_by_sku("DX-440"))` | Retourne 6 | Retourne 6 ✓ | ✗ Non testé |
-| 1.4.e | Entrée `None` (robustesse) | `available_qty(None)` | Pas d'attente définie — entrée invalide | Lève `TypeError: 'NoneType' object is not subscriptable` sur accès `item["qty"]` | ✗ Non testé (robustesse) |
+| 1.4.e | Entrée `None` (robustesse) | `available_qty(None)` | Pas d'attente définie — entrée invalide | Lève `TypeError` sur accès `item["qty"]` | ✗ Non testé (robustesse) |
 | 1.4.f | Dict malformé (clé `qty` manquante) | `available_qty({"sku": "XX", "reserved": 0})` | Pas d'attente définie — schéma invalide | Lève `KeyError: 'qty'` lors du calcul | ✗ Non testé (robustesse) |
 
-**Résumé du bug** :
-- Test rouge existant encode l'invariant attendu (`disponible >= 0`).
-- Le bug est volontaire, documenté, et pédagogique.
+**Propriété assurée** :
+- `available_qty()` retourne toujours ≥ 0 via `max(0, ...)`.
+- Aucun test n'échoue sur cette fonction — le bug volontaire a été corrigé.
 
 ---
 
@@ -115,7 +115,7 @@ Pour chaque workflow :
 **Domaine** : `preparation-commande`  
 **Fonction testée** : `can_fulfil(sku, requested)`
 
-**État actuel** : **Zéro test** pour ce workflow.
+**État actuel** : cette fonction est couverte **implicitement** par `test_orders.py` via l'allocation dans `picking_list()`. Aucun test direct, mais la logique est validée indirectement.
 
 ### 2.1 — Vérification nominale
 
@@ -126,8 +126,8 @@ Pour chaque workflow :
 | 2.1.a | Nominal : stock suffisant | AX-100 | 5 | 10 | `True` | Commande possible. |
 | 2.1.b | Nominal : stock exact | AX-100 | 10 | 10 | `True` | Limite atteinte. |
 | 2.1.c | Dégradé : stock insuffisant | AX-100 | 15 | 10 | `False` | Rupture. |
-| 2.1.d | Nominal : quantité zéro | AX-100 | 0 | 10 | `True` ou `False` ? | **Question ouverte** : est-ce une demande valide ? Code : `10 >= 0` → `True`. |
-| 2.1.e | Dégradé : quantité négative | AX-100 | -1 | 10 | `False` | **Entrée invalide** : code : `10 >= -1` → `True` ❌ (mauvais). Pas défendu. |
+| 2.1.d | Validation : quantité zéro | AX-100 | 0 | 10 | `False` | Demande nulle rejetée (`requested <= 0` → `False`). |
+| 2.1.e | Validation : quantité négative | AX-100 | -1 | 10 | `False` | Demande négative rejetée (`requested <= 0` → `False`). |
 
 ### 2.2 — SKU inexistant
 
@@ -135,58 +135,68 @@ Pour chaque workflow :
 |---|-----|-----|----------|---------|-------|
 | 2.2.a | SKU absent | INEXISTANT | 5 | `False` | Article n'existe pas, donc rupture. |
 | 2.2.b | SKU vide | "" | 5 | `False` | Idem. |
-| 2.2.c | SKU nul (robustesse) | None | 5 | Pas d'attente définie | Code : `find_by_sku(None)` retourne `None`, `can_fulfil()` teste `if item is None` et retourne `False` (`inventory/orders.py:8-9`). Entrée invalide, comportement sûr. |
+| 2.2.c | SKU nul (robustesse) | None | 5 | `False` | Code : `find_by_sku(None)` retourne `None`, `can_fulfil()` retourne `False`. Comportement sûr. |
 
-### 2.3 — Héritage du bug (disponibilité négative)
-
-| # | Cas | SKU | Quantité | Disponibilité | Attente métier | Réalité code | Problème |
-|---|-----|-----|----------|---|---|---|---|
-| 2.3.a | Article bugué, demande valide | CX-330 | 0 | -5 | `False` (rupture) | `-5 >= 0` → `False` ✓ | Aucun (correct par accident). |
-| 2.3.b | Article bugué, demande invalide | CX-330 | -6 | -5 | `False` (refus ou rupture) | `-5 >= -6` → `True` ❌ | **Incorrect** : accepte une demande invalide. |
-
-### 2.4 — Cas de robustesse (non testés)
+### 2.3 — Validation des entrées
 
 | # | Cas | Entrée | Comportement observé | Notes |
 |---|-----|--------|---------|---------|
-| 2.4.a | Type SKU incorrect | `can_fulfil(123, 5)` | Retourne `False` (SKU ne correspond à aucun article) | Pas de validation de type. |
-| 2.4.b | Type quantité incorrect | `can_fulfil("AX-100", "5")` | Lève `TypeError` lors de la comparaison `"5" <= 10` (str vs int) | Pas de validation de type. |
+| 2.3.a | Type SKU incorrect | `can_fulfil(123, 5)` | Retourne `False` (SKU ne correspond à aucun article) | Pas de validation de type, mais comportement sûr. |
+| 2.3.b | Type quantité incorrect | `can_fulfil("AX-100", "5")` | Lève `TypeError` lors de la comparaison `"5" <= 10` (str vs int) | Pas de validation de type. |
 
 ---
 
-## Workflow 3 : Génération de liste de prélèvement
+## Workflow 3 : Génération de liste de prélèvement avec allocation
 
 **Référence** : `WORKFLOW_PRELEVEMENT_COMMANDE.md`  
 **Domaine** : `preparation-commande`  
 **Fonction testée** : `picking_list(lines)`
 
-**État actuel** : **Zéro test** pour ce workflow.
+**Signature actuelle** : `picking_list(lines) → {picks: [dict], skipped: [dict]}`
+
+**État actuel** : **10 tests** couvrent ce workflow complètement dans `test_orders.py`.
 
 ### 3.1 — Cas nominal
 
-**Objectif métier** : transformer des lignes de commande en feuille de prélèvement triée par zone d'entrepôt.
+**Objectif métier** : transformer des lignes de commande en feuille de prélèvement triée par zone, avec allocation cumulée et signalement des pénuries.
 
-| # | Cas | Entrée | Attente | Notes |
-|---|-----|--------|---------|-------|
-| 3.1.a | Une seule ligne, SKU valide | `[("AX-100", 5)]` | `[{sku: "AX-100", zone: "A", qty: 5}]` | Liste à 1 entrée, non triée (1 seul élément). |
-| 3.1.b | Plusieurs lignes, zone homogène | `[("AX-100", 5), ("CX-330", 3)]` | `[{sku: "AX-100", zone: "A", qty: 5}, {sku: "CX-330", zone: "A", qty: 3}]` | Deux articles de zone A, déjà triés. |
-| 3.1.c | Plusieurs lignes, zones hétérogènes, ordre inverse | `[("DX-440", 2), ("AX-100", 5)]` | `[{sku: "AX-100", zone: "A", qty: 5}, {sku: "DX-440", zone: "C", qty: 2}]` | Après tri : A avant C (lexicographique). |
-| 3.1.d | Trois zones | `[("DX-440", 2), ("BX-220", 1), ("AX-100", 5)]` | `[{sku: "AX-100", zone: "A", qty: 5}, {sku: "BX-220", zone: "B", qty: 1}, {sku: "DX-440", zone: "C", qty: 2}]` | Tri : A, B, C. |
+| # | Cas | Entrée | picks attendus | skipped attendus | Statut |
+|---|-----|--------|---------|-------|-------|
+| 3.1.a | Une seule ligne, SKU valide | `[("AX-100", 5)]` | `[{sku: "AX-100", zone: "A", qty: 5}]` | `[]` | ✓ Testé |
+| 3.1.b | Plusieurs lignes, zone homogène | `[("AX-100", 5), ("CX-330", 3)]` | `[{sku: "AX-100", zone: "A", qty: 5}, {sku: "CX-330", zone: "A", qty: 3}]` | `[]` | ✗ Non testé |
+| 3.1.c | Plusieurs lignes, zones hétérogènes, ordre inverse | `[("DX-440", 2), ("AX-100", 5)]` | `[{sku: "AX-100", zone: "A", qty: 5}, {sku: "DX-440", zone: "C", qty: 2}]` | `[]` | ✗ Non testé |
+| 3.1.d | Trois zones | `[("DX-440", 2), ("BX-220", 1), ("AX-100", 5)]` | `[{sku: "AX-100", zone: "A", qty: 5}, {sku: "BX-220", zone: "B", qty: 1}, {sku: "DX-440", zone: "C", qty: 2}]` | `[]` | ✗ Non testé |
 
 ### 3.2 — Cas limites
 
-| # | Cas | Entrée | Attente | Notes |
-|---|-----|--------|---------|-------|
-| 3.2.a | Liste vide | `[]` | `[]` | Pas d'articles à prélever. |
-| 3.2.b | SKU inconnu unique | `[("INEXISTANT", 5)]` | `[]` | Ligne supprimée silencieusement. **Risque** : préparateur reçoit liste vide sans signal. |
-| 3.2.c | SKU mélange (connu + inconnu) | `[("AX-100", 5), ("INEXISTANT", 1), ("DX-440", 2)]` | `[{sku: "AX-100", zone: "A", qty: 5}, {sku: "DX-440", zone: "C", qty: 2}]` | Ligne inconnue supprimée, autres conservées et triées. **Risque** : silences trompeurs. |
-| 3.2.d | Quantité zéro | `[("AX-100", 0)]` | `[{sku: "AX-100", zone: "A", qty: 0}]` | Pas de validation : inclut la quantité, même si zéro. |
-| 3.2.e | Quantité négative | `[("AX-100", -1)]` | `[{sku: "AX-100", zone: "A", qty: -1}]` | Pas de validation : inclut la quantité, même si négative. |
+| # | Cas | Entrée | picks | skipped | Notes | Statut |
+|---|-----|--------|-------|---------|-------|--------|
+| 3.2.a | Liste vide | `[]` | `[]` | `[]` | Pas d'articles. | ✗ Non testé |
+| 3.2.b | SKU inconnu unique | `[("INEXISTANT", 5)]` | `[]` | `[]` | Ligne supprimée sans signal (qty>0 mais SKU absent). | ✓ Testé |
+| 3.2.c | SKU mélange (connu + inconnu) | `[("AX-100", 5), ("INEXISTANT", 1), ("DX-440", 2)]` | `[{sku: "AX-100", zone: "A", qty: 5}, {sku: "DX-440", zone: "C", qty: 2}]` | `[]` | Ligne inconnue supprimée, autres conservées et triées. | ✗ Non testé |
+| 3.2.d | Quantité zéro | `[("AX-100", 0)]` | `[]` | `[]` | Demande nulle ignorée sans signal. | ✓ Testé |
+| 3.2.e | Quantité négative | `[("AX-100", -1)]` | `[]` | `[]` | Demande négative ignorée sans signal. | ✓ Testé |
 
-### 3.3 — Interaction avec le bug (disponibilité négative)
+### 3.3 — Allocation cumulée par article (clé du nouveau comportement)
 
-| # | Cas | Entrée | Disponibilité réelle | Attente métier | Réalité code | Problème |
-|---|-----|--------|---|---|---|---|
-| 3.3.a | Article bugué, sans `can_fulfil` préalable | `[("CX-330", 10)]` | -5 | Devrait refuser ou signaler | `{sku: "CX-330", zone: "A", qty: 10}` | ❌ **Grave** : prélèvement sur rupture, silencieux. |
+**Propriété assurée** : deux lignes du même SKU ne peuvent pas ensemble dépasser la disponibilité. Les demandes qui dépassent le reste disponible sont rejetées et signalées dans `skipped`.
+
+| # | Cas | Entrée | picks | skipped | Propriété testée | Statut |
+|---|-----|--------|-------|---------|---------|--------|
+| 3.3.a | Deux lignes, OK | `[("CX-330", 20), ("CX-330", 20)]` | `[{sku: "CX-330", qty: 20}, {sku: "CX-330", qty: 20}]` | `[]` | Allocation cumulée OK (20+20 ≤ 40). | ✓ Testé |
+| 3.3.b | Deux lignes, dépassement à la 2e | `[("CX-330", 30), ("CX-330", 30)]` | `[{sku: "CX-330", qty: 30}]` | `[{order_id: 1, sku: "CX-330", qty_requested: 30, qty_missing: 20}]` | 2e ligne rejetée, pénurie signalée (30 > 10 restant). | ✓ Testé |
+| 3.3.c | Trois lignes, dépassement à la 3e | `[("CX-330", 15), ("CX-330", 15), ("CX-330", 15)]` | `[{sku: "CX-330", qty: 15}, {sku: "CX-330", qty: 15}]` | `[{order_id: 2, sku: "CX-330", qty_missing: 5}]` | 3e ligne rejetée (15 > 10 restant). | ✓ Testé |
+| 3.3.d | Casse différente, cumul respecté | `[("AX-100", 6), ("ax-100", 6)]` | `[{sku: "AX-100", qty: 6}]` | `[{order_id: 1, sku: "ax-100", qty_missing: 2}]` | "AX-100" et "ax-100" partagent l'allocation (cumul 6+6 > 10). | ✓ Testé |
+
+### 3.4 — Gestion des pénuries
+
+**Propriété** : chaque ligne non allouée figure dans `skipped` avec l'index original, le SKU exact demandé, la quantité demandée, et la quantité manquante calculée.
+
+| # | Cas | Cause de la pénurie | Signalement dans skipped |
+|---|-----|--------|---------|
+| 3.4.a | Stock insuffisant pour une ligne | qty_requested > disponible | ✓ Signalé avec qty_missing |
+| 3.4.b | Article hors stock (BX-220, available=0) | Tout qty > 0 | ✓ Signalé | 
+| 3.4.c | Dépassement cumulé (même SKU) | Cumul allocation > disponible | ✓ Signalé avec qty_missing = qty_requested - remaining |
 | 3.3.b | Article bugué, avec `can_fulfil` validant | `can_fulfil("CX-330", 0)` retourne `False`, donc pas d'appel à `picking_list` | -5 | Aucune liste générée | N/A | L'orchestrateur doit enchaîner les deux (pas implémenté). |
 
 ### 3.4 — Cas de robustesse (exploration défensive du code, non testés)

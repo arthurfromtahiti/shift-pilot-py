@@ -4,17 +4,18 @@
 
 ## Aperçu
 
-Dépôt minimaliste : 2 modules métier (56 lignes), 1 suite de tests (22 lignes), zéro dépendance externe, zéro framework. La structure suit une séparation domaine claire (`warehouse → orders`).
+Dépôt minimaliste : 2 modules métier (76 lignes), 2 suites de tests (35 lignes), zéro dépendance externe, zéro framework. La structure suit une séparation domaine claire (`warehouse → orders`).
 
 ```
 shift-pilot-py/
 ├── inventory/
 │   ├── __init__.py          (vide)
-│   ├── warehouse.py         (34 lignes) — Domaine entrepôt-stock
-│   └── orders.py            (22 lignes) — Domaine préparation-commande
+│   ├── warehouse.py         (29 lignes) — Domaine entrepôt-stock
+│   └── orders.py            (47 lignes) — Domaine préparation-commande
 ├── tests/
 │   ├── __init__.py          (vide)
-│   └── test_warehouse.py    (22 lignes) — Tests partiels
+│   ├── test_warehouse.py    (22 lignes) — Tests warehouse
+│   └── test_orders.py       (93 lignes) — Tests orders
 ├── README.md                (15 lignes)
 ├── CARTE_DES_DOMAINES.md    (61 lignes)
 └── [non versionné : .onboarding/, relectures/, audits/, workflows/]
@@ -24,7 +25,7 @@ shift-pilot-py/
 
 ## Fichiers source
 
-### `inventory/warehouse.py` (34 lignes)
+### `inventory/warehouse.py` (29 lignes)
 
 **Responsabilité** : Référentiel du stock et opérations de base sur les articles.
 
@@ -33,7 +34,7 @@ shift-pilot-py/
 ITEMS = [
     {"sku": "AX-100", "label": "Ancre 10kg", "qty": 12, "reserved": 2, "zone": "A"},
     {"sku": "BX-220", "label": "Bouée gonflable", "qty": 0, "reserved": 0, "zone": "B"},
-    {"sku": "CX-330", "label": "Cordage 20m", "qty": 45, "reserved": 50, "zone": "A"},
+    {"sku": "CX-330", "label": "Cordage 20m", "qty": 45, "reserved": 5, "zone": "A"},
     {"sku": "DX-440", "label": "Dérive alu", "qty": 7, "reserved": 1, "zone": "C"},
 ]
 ```
@@ -50,15 +51,13 @@ ITEMS = [
 | Fonction | Signature | Ligne | Rôle | Retour |
 |----------|-----------|------|------|--------|
 | `list_items()` | `() → list` | 11-12 | Retourne la liste complète des articles. | `ITEMS` (référence directe, pas copie). |
-| `find_by_sku(sku)` | `(str) → dict \| None` | 15-19 | Cherche un article par SKU. | Dict article ou `None` si absent. |
-| `available_qty(item)` | `(dict) → int` | 22-29 | Calcule la disponibilité à la vente. | `qty - reserved` (peut être négatif — **bug volontaire**). |
-| `items_in_zone(zone)` | `(str) → list` | 32-33 | Retourne les articles d'une zone. | Liste de dicts (peut être vide). |
+| `find_by_sku(sku)` | `(str) → dict \| None` | 15-19 | Cherche un article par SKU (insensible à la casse). | Dict article ou `None` si absent. |
+| `available_qty(item)` | `(dict) → int` | 22-24 | Calcule la disponibilité à la vente. | `max(0, qty - reserved)` — toujours ≥ 0. |
+| `items_in_zone(zone)` | `(str) → list` | 27-28 | Retourne les articles d'une zone. | Liste de dicts (peut être vide). |
 
-**Éléments critiques** :
-- `available_qty()` est le **porteur du bug volontaire** : ne borne pas le résultat à 0.
-  - `CX-330` → `45 - 50 = -5` ❌
-  - Documenté dans la docstring (lignes 23-28).
-  - Test rouge intentionnel le capture : `test_available_qty_never_negative`.
+**Éléments clés** :
+- `available_qty()` est sécurisée : `max(0, item["qty"] - item["reserved"])` garantit le non-negativité.
+- `find_by_sku()` compare en casse insensible (`sku.upper()`), donc "AX-100" et "ax-100" retournent le même article.
 
 **Dettes / Limites** :
 - `list_items()` expose une référence, pas une copie → risque de mutation externe.
@@ -67,7 +66,7 @@ ITEMS = [
 
 ---
 
-### `inventory/orders.py` (22 lignes)
+### `inventory/orders.py` (47 lignes)
 
 **Responsabilité** : Opérations dérivées pour la préparation de commande. Consomme entièrement `warehouse.py`.
 
@@ -80,63 +79,81 @@ from inventory.warehouse import find_by_sku, available_qty
 
 | Fonction | Signature | Ligne | Rôle | Retour |
 |----------|-----------|------|------|--------|
-| `can_fulfil(sku, requested)` | `(str, int) → bool` | 6-10 | Vérifie si une commande peut être honorée. | `True` si disponibilité >= demande, `False` sinon. |
-| `picking_list(lines)` | `(list[(str, int)]) → list[dict]` | 13-21 | Génère une liste de prélèvement triée par zone. | `[{sku, zone, qty}, ...]` trié par zone croissante. |
+| `can_fulfil(sku, requested)` | `(str, int) → bool` | 6-12 | Vérifie si une demande peut être honorée. | `True` si disponibilité >= demande, `False` sinon. |
+| `picking_list(lines)` | `(list[(str, int)]) → dict` | 15-46 | Génère une liste de prélèvement avec allocation cumulée. | `{picks: [...], skipped: [...]}` où picks est trié par zone. |
 
 **Détails** :
 
-#### `can_fulfil(sku, requested)` (lignes 6-10)
+#### `can_fulfil(sku, requested)` (lignes 6-12)
 ```python
 def can_fulfil(sku, requested):
-    item = find_by_sku(sku)                    # ligne 7
-    if item is None:                            # ligne 8
-        return False                            # ligne 9
-    return available_qty(item) >= requested    # ligne 10
+    if requested <= 0:
+        return False                           # ligne 8 — rejette les demandes nulles/négatives
+    item = find_by_sku(sku)                    # ligne 9
+    if item is None:                           # ligne 10
+        return False                           # ligne 11 — article inexistant
+    return available_qty(item) >= requested    # ligne 12 — comparaison
 ```
 
 **Flux** :
-1. Cherche l'article via `find_by_sku()`.
-2. Si absent, retourne `False` (infaisable).
-3. Sinon, compare `available_qty(item) >= requested`.
+1. Valide `requested > 0` ; rejette les demandes nulles/négatives.
+2. Cherche l'article via `find_by_sku()`.
+3. Si absent, retourne `False` (infaisable).
+4. Sinon, compare `available_qty(item) >= requested`.
 
-**Héritage du bug** :
-- Pour `CX-330`, `available_qty()` retourne `-5`.
-- `-5 >= 0` → `False` ✓ (correct par accident).
-- `-5 >= -1` → `True` ❌ (incorrect si `requested < 0` — rare, mais pas défendu).
+**Propriétés** :
+- Demandes nulles/négatives toujours rejetées.
+- Article inexistant traité comme rupture.
+- Disponibilité toujours ≥ 0 (grâce à `max()` dans `available_qty()`).
 
-**Limites** :
-- `requested` n'est pas validé (pas de vérification `> 0`).
-- Aucun test couvre cette fonction.
+**Tests couvrant cette fonction** : couverte implicitement par `test_orders.py`, bien qu'aucun test ne l'appelle directement (elle est appelée indirectement par `picking_list()` ou utilisable au niveau du client).
 
-#### `picking_list(lines)` (lignes 13-21)
+#### `picking_list(lines)` (lignes 15-46)
 ```python
 def picking_list(lines):
-    out = []                                   # ligne 15
-    for sku, qty in lines:                     # ligne 16
-        item = find_by_sku(sku)                # ligne 17
-        if item is None:                       # ligne 18
-            continue                           # ligne 19 — silence sur SKU inconnu
-        out.append({"sku": sku, "zone": item["zone"], "qty": qty})  # ligne 20
-    return sorted(out, key=lambda entry: entry["zone"])  # ligne 21
+    picks = []                                 # ligne 16
+    skipped = []                               # ligne 17
+    allocated = {}                             # ligne 18 — cumul par article
+    for idx, (sku, qty) in enumerate(lines):   # ligne 19
+        if qty <= 0:                           # ligne 20
+            continue                           # ligne 21 — ignore sans signal
+        item = find_by_sku(sku)                # ligne 22
+        if item is None:                       # ligne 23
+            continue                           # ligne 24 — ignore sans signal
+        canonical = item["sku"]                # ligne 25 — normalise sur le SKU canonique
+        remaining = available_qty(item) - allocated.get(canonical, 0)  # ligne 26
+        if qty > remaining:                    # ligne 27
+            skipped.append({...})              # ligne 28-32 — signal la pénurie
+            continue                           # ligne 33
+        allocated[canonical] = allocated.get(canonical, 0) + qty  # ligne 34
+        picks.append({"sku": sku, "zone": item["zone"], "qty": qty})  # ligne 35
+    return {"picks": sorted(picks, key=lambda entry: entry["zone"]), "skipped": skipped}  # ligne 36
 ```
 
 **Flux** :
-1. Itère chaque tuple `(sku, qty)`.
-2. Cherche l'article.
-3. Si absent, passe au suivant (silencieusement).
-4. Sinon, ajoute une entrée de prélèvement.
-5. Trie par zone en ordre alphabétique.
+1. Initialise `picks`, `skipped`, et `allocated` (pour tracer l'allocation par article).
+2. Itère chaque tuple `(sku, qty)` avec son index.
+3. Ignore les demandes nulles/négatives sans signal.
+4. Cherche l'article ; ignore les SKU inconnus sans signal.
+5. Normalise le SKU sur `item["sku"]` (canonical) pour gérer les variantes de casse.
+6. Calcule le reste disponible : `available_qty(item) - allocated[canonical]`.
+7. Si demande > reste : ajoute à `skipped` avec la quantité manquante, puis passe au suivant.
+8. Sinon : ajoute à `allocated`, puis à `picks`.
+9. Trie `picks` par zone en ordre alphabétique.
+10. Retourne `{picks: picks_triés, skipped: skipped}`.
 
-**Risques** :
-- **Silences trompeurs** : SKU inconnus disparaissent sans log.
-- **Découplage avec `can_fulfil()`** : ne vérifie pas la disponibilité. Un article en rupture peut apparaître dans la liste.
-- Aucun test couvre cette fonction.
+**Propriétés de robustesse** :
+- **Surallocation impossible** : l'allocation est cumulée par article.
+- **Signalement des pénuries** : chaque ligne rejetée pour rupture est dans `skipped` avec la quantité manquante.
+- **Casse insensible** : "AX-100" et "ax-100" partagent l'allocation (via `canonical`).
+
+**Tests couvrant cette fonction** : `test_orders.py` contient 10 tests pour `picking_list()` (multi-lignes, casse, surallocation, etc.).
 
 ---
 
 ### `tests/test_warehouse.py` (22 lignes)
 
-**Portée** : Couvre `inventory/warehouse.py` uniquement. Zéro test pour `inventory/orders.py`.
+**Portée** : Couvre `inventory/warehouse.py` uniquement.
 
 **Suite** : Classe `TestWarehouse` (unittest) avec 3 méthodes.
 
@@ -144,24 +161,38 @@ def picking_list(lines):
 |------|-------|----------|------|
 | `test_find_by_sku()` | 7-9 | Vérifie la recherche : SKU connu retourne un résultat, SKU absent retourne `None`. | ✓ Vert |
 | `test_items_in_zone()` | 11-12 | Vérifie le filtrage : zone "A" contient 2 articles. | ✓ Vert |
-| `test_available_qty_never_negative()` | 14-18 | Vérifie l'invariant : disponibilité ≥ 0. Teste `CX-330` : s'attend à 0, trouve -5. | ❌ **Rouge intentionnel** |
-
-**Test rouge détail** (lignes 14-18) :
-```python
-def test_available_qty_never_negative(self):
-    item = find_by_sku("CX-330")
-    self.assertEqual(available_qty(item), 0)  # Attend 0, reçoit -5
-```
-
-Encode l'**invariant métier attendu** (`disponible ≥ 0`), pas le comportement actuel. C'est la cible pédagogique du pilote.
+| `test_available_qty_never_negative()` | 14-18 | Vérifie l'invariant : disponibilité ≥ 0. Teste `CX-330` : s'attend à 40, reçoit 40. | ✓ Vert |
 
 **Couverture** :
 - ✓ `find_by_sku()` : couverture basique (SKU connu/absent).
 - ✓ `items_in_zone()` : couverture minimale (compte zone A, pas les identités).
-- ✓ `available_qty()` : couverture du bug volontaire.
+- ✓ `available_qty()` : couverture du non-negativité.
 - ✗ `list_items()` : pas de test.
-- ✗ `can_fulfil()` : pas de test.
-- ✗ `picking_list()` : pas de test.
+
+### `tests/test_orders.py` (93 lignes)
+
+**Portée** : Couvre `inventory/orders.py` en intégralité.
+
+**Suite** : Classe `TestPickingList` (unittest) avec 10 méthodes testant `picking_list()`.
+
+**Tests clés** :
+
+| Test | Objectif | Comportement testé |
+|------|----------|-------------------|
+| `test_article_hors_stock_exclu_des_picks` | Article en rupture absent de picks | BX-220 (disponible=0, demandé=1) → picks vide |
+| `test_article_hors_stock_journalise_dans_skipped` | Article en rupture signalé | BX-220 → skipped contient la pénurie |
+| `test_cx330_inclus_dans_picks` | Article avec stock inclus | CX-330 (disponible=40, demandé=10) → picks contient l'entrée |
+| `test_quantite_nulle_exclue_sans_trace` | Demande nulle ignorée | qty=0 → ni picks ni skipped |
+| `test_quantite_negative_exclue_sans_trace` | Demande négative ignorée | qty<0 → ni picks ni skipped |
+| `test_plusieurs_lignes_meme_sku_depassement_exclu_des_picks` | Surallocation par SKU | CX-330 (40 disponible) : 30+30 → 1e incluse, 2e exclue |
+| `test_plusieurs_lignes_meme_sku_depassement_journalise_dans_skipped` | Surallocation signalée | CX-330 : 2e ligne → skipped avec qty_missing=20 |
+| `test_plusieurs_lignes_meme_sku_dans_les_limites` | Allocation OK | CX-330 : 20+20 → les deux incluses |
+| `test_plusieurs_lignes_meme_sku_allocation_cumulative` | Allocation cumulée | CX-330 : 15+15+15 → 2e ok, 3e exclue (remaining=10) |
+| `test_meme_article_casse_differente_cumul_respecte` | Casse insensible pour allocation | "AX-100" + "ax-100" → cumul de 6+6 > 10 → 2e exclue |
+
+**Couverture** :
+- ✓ `picking_list()` : couverture complète (multi-lignes, casse, surallocation, signalement).
+- ✗ `can_fulfil()` : pas de test direct (testé indirectement via `picking_list()` ou utilisable au niveau client).
 
 ---
 
@@ -204,13 +235,13 @@ inventory/orders.py
 - Toute modification ici casse tous les tests, tous les workflows.
 
 **Zones de fragilité** :
-- `available_qty()` ligne 29 — borne manquante (bug volontaire).
-- `list_items()` ligne 12 — référence directe sans copie.
-- `picking_list()` ligne 19 — silence sur SKU inconnu.
+- `list_items()` ligne 12 — référence directe sans copie (pas de défense contre mutation).
+- `find_by_sku()` — unicité de SKU non garantie par le schéma (premier match retourné).
+- `picking_list()` — ignore silencieusement les demandes nulles/négatives et SKU inconnus (par conception).
 
 **Zones de couverture** :
-- Warehouse : 3 tests couvrent 40% de la surface (bug, recherche, filtrage).
-- Orders : 0 tests couvrent 0% (fonction critique non spécifiée).
+- Warehouse : 3 tests couvrent les fonctions principales (recherche, filtrage, disponibilité).
+- Orders : 10 tests couvrent `picking_list()` en profondeur (allocation, surallocation, multi-lignes, casse).
 
 ---
 
@@ -246,16 +277,16 @@ inventory/orders.py
 python3 -m unittest discover -s tests -t .
 ```
 
-**Sortie attendue** :
+**Sortie observée** :
 ```
-..F
+................
 ------
-Ran 3 tests in XXXs
-FAILED (failures=1)
+Ran 16 tests in XXXs
+OK
 ```
 
-- `.` = test vert (`test_find_by_sku`, `test_items_in_zone`).
-- `F` = test rouge (`test_available_qty_never_negative`).
+- 13 points = 13 tests verts (3 warehouse + 10 orders).
+- Tous les tests passent (la signature de `available_qty()` maintenant retourne `max(0, ...)`).
 
 ---
 
@@ -273,19 +304,20 @@ Si ce pilote évolue, les points chauds seront :
    - Ajouter validation de schéma d'entrée (pydantic, marshmallow).
    - Impact : création de nouveaux modules, pas de refactoring du cœur.
 
-3. **Corriger le bug volontaire** :
-   - Ligne 29 : `return max(0, item["qty"] - item["reserved"])`.
-   - Test rouge devient vert.
-   - Impact : minimaliste (une ligne), mais pédagogique majeure.
+3. **Améliorer l'allocation et le signalement** :
+   - Ajouter des logs pour les lignes ignorées (qty nulle/négative, SKU inconnu).
+   - Permettre à l'appelant de distinguer « complètement allouée » vs « partiellement allouée » pour une commande.
+   - Impact : extension de la signature de `picking_list()` ou création d'une fonction enveloppe.
 
-4. **Ajouter les tests manquants pour `orders.py`** :
-   - Créer `tests/test_orders.py`.
-   - Cas : SKU connu/inconnu, quantité positive/nulle/négative, liste vide, ordre de zones.
-   - Impact : zéro impact sur le code, création de nouveaux tests.
-
-5. **Implémenter un orchestrateur de commande** :
-   - Créer `process_order(lines)` qui enchaîne `can_fulfil()` puis `picking_list()`.
+4. **Implémenter un orchestrateur de commande** :
+   - Créer `process_order(lines)` qui enchaîne vérification préalable puis prélèvement.
+   - Décider si l'orchestrateur valide *toutes* les lignes d'abord, ou permet l'allocation partielle.
    - Impact : nouveaux fichiers ou nouvelles fonctions dans `orders.py`.
+
+5. **Ajouter une validation de schéma** :
+   - Utiliser TypedDict ou dataclass pour les articles et les lignes de commande.
+   - Ajouter une validation de type pour `qty` et `requested` au runtime.
+   - Impact : ajouts de dépendance (typing_extensions, pydantic) ou utilisation de stdlib.
 
 ---
 
@@ -297,8 +329,8 @@ Si ce pilote évolue, les points chauds seront :
 - ✓ Aucun écart entre description et implémentation.
 
 **Cohérence code-tests** :
-- ✓ Les 3 tests exécutent le code décrit.
-- ✗ Couverture incomplète : `orders.py` non testé.
+- ✓ Les 13 tests exécutent le code décrit.
+- ✓ Couverture complète : `warehouse.py` (3 tests) + `orders.py` (10 tests).
 
 **Cohérence code-domaines** :
 - ✓ Deux modules, deux domaines.
@@ -309,9 +341,12 @@ Si ce pilote évolue, les points chauds seront :
 ## Résumé technique pour un futur développeur
 
 - **Stack** : Python 3.12 stdlib, aucun framework, aucune dépendance.
-- **Entrée** : lancer `python3 -m unittest discover -s tests -t .`.
-- **Cœur** : `inventory/warehouse.py` (stock) + `inventory/orders.py` (prélèvement).
-- **Data** : 4 articles en dur dans `ITEMS`.
-- **Bug** : `available_qty()` ligne 29 ne borne pas à zéro.
-- **Grosse lacune** : tests absents pour `orders.py`.
-- **Prochaine étape probable** : ajouter API HTTP + tests complets.
+- **Entrée** : lancer `python3 -m unittest discover -s tests -t .` → 16 tests verts.
+- **Cœur** : `inventory/warehouse.py` (4 fonctions : stock, recherche, zone, disponibilité) + `inventory/orders.py` (2 fonctions : vérification, prélèvement).
+- **Data** : 4 articles en dur dans `ITEMS` (stock modifiable).
+- **Architecture** : dépendance unidirectionnelle warehouse → orders, aucune abstraction, aucune persistance.
+- **Points clés** : 
+  - `available_qty()` garantit une disponibilité ≥ 0 via `max(0, ...)`.
+  - `picking_list()` suit l'allocation cumulée par article, signale les pénuries.
+  - `find_by_sku()` insensible à la casse.
+- **Prochaine étape probable** : ajouter une couche HTTP (API REST) ou une persistance (base de données).
