@@ -3,7 +3,8 @@
 Porte d'entrée des artefacts d'onboarding du dépôt **shift-pilot-py**.  
 Générée le 2026-08-03 — onboarding initial complet (27 artefacts, 13 relectures).  
 Mise à jour partielle le 2026-08-09 — réconciliation des 3 workflows au SHA `511104b` (carte des domaines déjà réconciliée au même SHA).  
-Corrections post-relecture le 2026-08-09 — (1) référence `CARTE_DES_DOMAINES.md` corrigée en `.onboarding/domaines/CARTE_DES_DOMAINES.md` dans les 3 workflows ; (2) couverture des tests précisée dans `WORKFLOW_PRELEVEMENT_COMMANDE` (règles prouvées par code vs règles exercées par les tests) ; (3) types d'entrée reformulés comme préconditions non validées dans `WORKFLOW_FAISABILITE_COMMANDE`.
+Corrections post-relecture le 2026-08-09 — (1) référence `CARTE_DES_DOMAINES.md` corrigée en `.onboarding/domaines/CARTE_DES_DOMAINES.md` dans les 3 workflows ; (2) couverture des tests précisée dans `WORKFLOW_PRELEVEMENT_COMMANDE` (règles prouvées par code vs règles exercées par les tests) ; (3) types d'entrée reformulés comme préconditions non validées dans `WORKFLOW_FAISABILITE_COMMANDE`.  
+**Corrections finales (2026-08-09, SHIAAAAAAAAAAAAAAAAAAAAAAAA-554)** — `CAHIER_RECETTE.md` : (1) couverture clarifiée comme partielle (not complète) ; (2) ligne parasite 3.3.b supprimée ; (3) cas 3.4.b corrigé (ValueError levée, pas ignorée) ; (4) données CX-330 corrigées (reserved: 50→5) ; (5) traçabilité bug mise à jour (bug corrigé, tests verts).
 
 | type | domaine | workflow | dépôt | fichier | date | version SHA | niveau de preuve | titre |
 |------|---------|----------|-------|---------|------|-------------|------------------|-------|
