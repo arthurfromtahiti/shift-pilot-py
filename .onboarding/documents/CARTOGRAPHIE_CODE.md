@@ -194,7 +194,7 @@ def picking_list(lines):
 | `test_meme_article_casse_differente_cumul_respecte` | Casse insensible pour allocation | "AX-100" + "ax-100" → cumul de 6+6 > 10 → 2e exclue |
 
 **Couverture** :
-- ✓ `picking_list()` : couverture complète (10 tests : multi-lignes, casse, surallocation, signalement, pénuries).
+- ✓ `picking_list()` : couverture partielle (10 tests : mono-ligne, allocation cumulée, casse, surallocation, signalement, pénuries ; les cas multi-zones 3.1.b-d et limites 3.2.a,c ne sont pas testés).
 - ✗ `can_fulfil()` : aucun test direct ni indirect (utilisable au niveau client, pas validée par la suite actuelle).
 
 ---

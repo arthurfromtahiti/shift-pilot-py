@@ -8,7 +8,7 @@
 
 ## Contexte métier
 
-Le projet répond à la question : « Comment modéliser et tester une logistique d'entrepôt ? » Le contexte fonctionnel est une entreprise de distribution qui doit :
+Le projet répond à la question : « Comment modéliser et tester une logistique d'entrepôt ? » C'est un scenario pédagogique où une entreprise de distribution doit :
 
 1. **Tenir un référentiel du stock en entrepôt** avec quatre articles fictifs (Ancre, Bouée, Cordage, Dérive), chacun localisé dans une zone (A, B, C), porteur d'une quantité brute et d'une quantité réservée (committée aux clients, mais pas encore prélevée).
 2. **Calculer la disponibilité réelle à la vente** pour chaque article : stock brut moins quantité réservée. **Règle forte : cette disponibilité doit être ≥ 0**, puisqu'on ne peut pas vendre ce qu'on n'a pas. Implémentation : `max(0, qty - reserved)`.
@@ -55,8 +55,8 @@ Le modèle de données est implicite — une liste Python de dicts sans schéma 
 
 ### État actuel des tests
 - `inventory/warehouse.py` : 6 tests exécutés (tous verts).
-- `inventory/orders.py` : 10 tests exécutés (tous verts, couvrant `picking_list()` en intégralité).
-- **Total** : 16 tests. **Couverture** : `picking_list()` complètement couverte ; `can_fulfil()` n'a aucun test direct ni indirect (pas appelée dans la suite de test ; utilisable au niveau du client, pas validée par la suite actuelle).
+- `inventory/orders.py` : 10 tests exécutés (tous verts, couvrant `picking_list()` partiellement : allocation cumulée, surallocation, pénuries, casse insensible ; cases multi-zones et certains cas limites non testés).
+- **Total** : 16 tests. **Couverture** : `picking_list()` partiellement couverte ; `can_fulfil()` n'a aucun test direct ni indirect (pas appelée dans la suite de test ; utilisable au niveau du client, pas validée par la suite actuelle).
 
 ## Dépôt et source de vérité
 

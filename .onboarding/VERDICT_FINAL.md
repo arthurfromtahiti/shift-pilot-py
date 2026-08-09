@@ -240,6 +240,63 @@ Chaque affirmation factuelle est :
 
 ---
 
+---
+
+### 8. Résolution des quatre écarts d'intentions métier non prouvées (neuvième passage — SHIAAAAAAAAAAAAAAAAAAAAAAA-554, changements demandés)
+
+**Problème** : Le Relecteur a signalé quatre écarts subsistants où les documents prétendaient connaître des intentions métier ou donnaient des formulations trop fortes sans les sourcer au code :
+
+1. **CDC_FONCTIONNEL.md:12** : affirmation « garantir la faisabilité » — sur-promesse : le code signale les pénuries, ne garantit rien.
+2. **CDC_FONCTIONNEL.md:18 & PROJECT_CONTEXT.md:11** : contexte métier présenté comme réalité (« une entreprise de distribution ») plutôt que scenario pédagogique.
+3. **CDC_FONCTIONNEL.md & PROJECT_CONTEXT.md** : absence d'intentions métier non prouvées comme « optimisation des déplacements » ou références à un « préparateur » — correction : ne pas inventer.
+4. **CAHIER_RECETTE.md:157** : affirmation que `picking_list()` est couvert « complètement » alors que plusieurs cas multi-zones et cas limites ne sont pas testés.
+
+**Corrections appliquées** :
+- **CDC_FONCTIONNEL.md:12** : remplacé « garantir la faisabilité » par « en vérifiant la disponibilité et en signalant les pénuries »
+- **CDC_FONCTIONNEL.md:18** : remplacé « Qui : une entreprise de distribution » par « Scenario : Dans un scenario pédagogique de logistique d'entrepôt, une entreprise de distribution doit »
+- **PROJECT_CONTEXT.md:11** : remplacé « Le contexte fonctionnel est une entreprise de distribution » par « C'est un scenario pédagogique où une entreprise de distribution doit »
+- **CAHIER_RECETTE.md:157** : remplacé « couvrent ce workflow complètement » par « couvrent ce workflow partiellement (allocation cumulée, pénuries, cas de casse insensible). Les cas multi-zones (3.1.b-d) et plusieurs cas limites (3.2.a, 3.2.c) ne sont pas testés »
+
+**Vérification** :
+- `grep -r "garantir la faisabilité" .onboarding/documents/` : aucun résultat ✓
+- `grep -r "optimis\|déplac\|préparateu" .onboarding/documents/` : aucun résultat (termes inexistants) ✓
+- Contexte pédagogique bien qualifié dans CDC et PROJECT_CONTEXT ✓
+- Couverture de `picking_list()` documentée comme partielle avec énumération des cas non testés ✓
+
+**Vérification croisée** :
+- Les termes « optimisation des déplacements » et « préparateur » n'apparaissaient pas dans les documents — aucune intention métier non prouvée ne persiste.
+- Toutes les formulations factsuelles sont maintenant sourcées au code ou correctement qualifiées comme scenarios pédagogiques.
+
+---
+
+---
+
+### 10. Résolution de la contradiction : couverture « complète » vs « partielle » de `picking_list()` (dixième passage — SHIAAAAAAAAAAAAAAAAAAAAA-554, changements demandés — contradiction bloquante)
+
+**Problème** : Contradiction bloquante identifiée par le Relecteur :
+- PROJECT_CONTEXT.md:59 affirmait « `picking_list()` **complètement couverte** »
+- CARTOGRAPHIE_CODE.md:197 affirmait « couverture **complète** (10 tests) »
+- Mais CAHIER_RECETTE.md:157 énumérait clairement les cas **non testés** : cas multi-zones (3.1.b-d), cas limites (3.2.a, 3.2.c)
+
+**Vérification de la réalité** :
+- Audit code : 10 tests dans test_orders.py couvrent allocation cumulée, surallocation, pénuries, casse insensible, cas mono-ligne
+- CAHIER_RECETTE.md tableau 3.1 : trois cas multi-zones (3.1.b-c-d) marqués ✗ Non testé
+- CAHIER_RECETTE.md tableau 3.2 : deux cas limites (3.2.a, 3.2.c) marqués ✗ Non testé
+- Conclusion : couverture **partielle**, pas complète
+
+**Corrections appliquées** :
+- **PROJECT_CONTEXT.md:59** : remplacé « `picking_list()` complètement couverte » par « `picking_list()` partiellement couverte » + détail des cas testés et non testés
+- **CARTOGRAPHIE_CODE.md:197** : remplacé « couverture complète (10 tests) » par « couverture partielle (10 tests : mono-ligne, allocation cumulée, casse, surallocation, signalement, pénuries ; les cas multi-zones 3.1.b-d et limites 3.2.a,c ne sont pas testés) »
+
+**Vérification** :
+- `grep -n "complètement couverte" .onboarding/documents/*.md` : aucun résultat ✓
+- `grep -n "couverture complète.*picking_list" .onboarding/documents/*.md` : aucun résultat ✓
+- Les deux documents affirment maintenant « partiellement » conformément au cahier de recette ✓
+
+**État final** : Cette contradiction bloquante est éliminée. Les trois documents (PROJECT_CONTEXT.md, CARTOGRAPHIE_CODE.md, CAHIER_RECETTE.md) sont maintenant harmonisés : `picking_list()` est documentée comme **partiellement testée** avec énumération explicite des cas non couverts.
+
+---
+
 **Rédacteur** : agent 413e9fb2-9808-4f48-837e-59ceaf3e5d83  
 **Branche** : main  
-**Disposition** : `in_review` (huitième passage — trois incohérences résiduelles corrigées, prêt pour approbation)
+**Disposition** : `in_review` (dixième passage — contradiction bloquante sur couverture de picking_list() résolue, prêt pour approbation)
