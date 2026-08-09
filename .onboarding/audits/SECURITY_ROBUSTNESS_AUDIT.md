@@ -8,7 +8,7 @@
 
 ## Résumé exécutif
 
-Aucun secret en clair, aucune route exposée, aucune dépendance tierce : la surface de sécurité est quasi nulle pour ce pilote. Les risques identifiés sont de robustesse : (1) `available_qty()` retourne `max(0, qty - reserved)` — l'invariant est garanti par le code et validé par des tests (`inventory/warehouse.py:22-24`) ; (2) `can_fulfil()` rejette les quantités nulles/négatives mais n'effectue pas de validation de type ; `picking_list()` suppose un itérable de tuples `(str, int)` sans contrôle (`inventory/orders.py:28`) ; (3) `picking_list()` avale silencieusement les SKUs inconnus sans log ni signal (`inventory/orders.py:32-33`). Ces points sont sans impact de sécurité dans l'état actuel, mais deviendraient des vecteurs de comportement indéterminé si une couche web ou externe était ajoutée.
+Aucun secret en clair, aucune route exposée, aucune dépendance tierce : la surface de sécurité est quasi nulle pour ce pilote dans le périmètre du dépôt inspecté (aucune surface réseau, aucune dépendance tierce déclarée). Les risques identifiés sont de robustesse : (1) `available_qty()` retourne `max(0, qty - reserved)` — l'invariant est garanti par le code et encodé par des tests présents (`inventory/warehouse.py:22-24`) ; (2) `can_fulfil()` rejette les quantités nulles/négatives mais n'effectue pas de validation de type ; `picking_list()` suppose un itérable de tuples `(str, int)` sans contrôle (`inventory/orders.py:28`) ; (3) `picking_list()` avale silencieusement les SKUs inconnus sans log ni signal (`inventory/orders.py:32-33`). Ces points sont sans impact de sécurité dans l'état actuel, mais deviendraient des vecteurs de comportement indéterminé si une couche web ou externe était ajoutée.
 
 ## Constats détaillés
 
@@ -16,7 +16,7 @@ Aucun secret en clair, aucune route exposée, aucune dépendance tierce : la sur
 
 **VÉRIFIÉ_CODE — Aucune route réseau, aucun binding de port.** Il n'y a ni serveur HTTP, ni WebSocket, ni listener TCP dans le code. Les fonctions sont des callables Python purs. Aucun framework web n'est importé.
 
-**VÉRIFIÉ_CODE — `available_qty()` : invariant borné à zéro, correctif CLA-177 appliqué.** `available_qty(item)` retourne `max(0, item["qty"] - item["reserved"])` (`inventory/warehouse.py:22-24`). Pour `CX-330` (`qty=45, reserved=5`), le retour est `40`. L'invariant « disponibilité ≥ 0 » est respecté par construction. Deux tests verts encodent cet invariant : `test_available_qty_cx330` (cas nominal sur `CX-330`) et `test_available_qty_borne_a_zero_quand_reserved_superieur_a_qty` (cas `reserved > qty` sur article synthétique `{qty=10, reserved=15}` → retourne `0`) (`tests/test_warehouse.py:14-23`).
+**VÉRIFIÉ_CODE — `available_qty()` : invariant borné à zéro, correctif CLA-177 appliqué.** `available_qty(item)` retourne `max(0, item["qty"] - item["reserved"])` (`inventory/warehouse.py:22-24`). Pour `CX-330` (`qty=45, reserved=5`), le retour est `40`. L'invariant « disponibilité ≥ 0 » est respecté par construction. Deux tests encodent cet invariant : `test_available_qty_cx330` (cas nominal sur `CX-330`) et `test_available_qty_borne_a_zero_quand_reserved_superieur_a_qty` (cas `reserved > qty` sur article synthétique `{qty=10, reserved=15}` → retourne `0`) (`tests/test_warehouse.py:14-23`) — voir TESTING_AUDIT.md pour la confirmation d'exécution.
 
 **VÉRIFIÉ_CODE — Validation partielle des entrées dans `can_fulfil()` et `picking_list()`.** `can_fulfil(sku, requested)` rejette `requested <= 0` (`inventory/orders.py:7-8`), mais n'effectue aucun contrôle de type sur `sku` ni de validation explicite du type de `requested`. Un `requested` non-entier (ex. `None`, `"3"`) provoquerait une `TypeError` non guidée à la comparaison. `picking_list(lines)` suppose que `lines` est un itérable de tuples `(str, int)` ; un format incorrect (dict, str seul, liste de listes) lèverait une `ValueError` ou `TypeError` non guidée au déstructurage (`inventory/orders.py:28`).
 
@@ -24,12 +24,12 @@ Aucun secret en clair, aucune route exposée, aucune dépendance tierce : la sur
 
 **VÉRIFIÉ_CODE — `find_by_sku()` retourne `None` sur SKU inconnu — documenté, mais sans garde systématique chez l'appelant.** `warehouse.py` retourne `None` pour tout SKU non trouvé (`inventory/warehouse.py:19`). `can_fulfil()` teste ce cas (`inventory/orders.py:9-11`). `picking_list()` aussi (`inventory/orders.py:32-33`). En revanche, un futur appelant qui passerait directement `find_by_sku(sku)` dans `available_qty()` sans tester `None` provoquerait une `TypeError: 'NoneType' object is not subscriptable` — l'invariant de sécurité du `None` n'est pas documenté au niveau de l'interface publique.
 
-**VÉRIFIÉ_CODE — Aucune dépendance tierce.** Pas de `requirements.txt`, `pyproject.toml`, `Pipfile` ni `setup.py` localisé dans le dépôt (inventaire complet). Pas de surface de vulnérabilité de supply chain.
+**VÉRIFIÉ_CODE — Aucune dépendance tierce déclarée dans le dépôt.** Pas de `requirements.txt`, `pyproject.toml`, `Pipfile` ni `setup.py` localisé dans le dépôt (inventaire complet). Aucune surface de vulnérabilité de supply chain identifiable dans le dépôt inspecté.
 
 ## Forces
 
-- **Surface d'attaque structurellement nulle.** Pas de réseau, pas de BD, pas de secrets : les catégories OWASP classiques (injection, auth, exposition) sont hors périmètre.
-- **Invariant de disponibilité garanti par le code et encodé par des tests.** `available_qty()` retourne `max(0, qty - reserved)` (`inventory/warehouse.py:22-24`), garantissant une disponibilité jamais négative. Deux tests verts (`test_available_qty_cx330` et `test_available_qty_borne_a_zero_quand_reserved_superieur_a_qty`, `tests/test_warehouse.py:14-23`) encodent et prouvent cet invariant. Le cycle rouge→vert est abouti.
+- **Surface d'attaque nulle dans le périmètre du dépôt inspecté.** Pas de réseau, pas de BD, pas de secrets déclarés dans le dépôt : les catégories OWASP classiques (injection, auth, exposition) sont hors périmètre pour l'état actuel du code.
+- **Invariant de disponibilité garanti par le code et encodé par des tests.** `available_qty()` retourne `max(0, qty - reserved)` (`inventory/warehouse.py:22-24`), garantissant une disponibilité jamais négative. Deux tests (`test_available_qty_cx330` et `test_available_qty_borne_a_zero_quand_reserved_superieur_a_qty`, `tests/test_warehouse.py:14-23`) encodent cet invariant (voir TESTING_AUDIT.md pour la confirmation d'exécution).
 - **Gestion du `None` dans les deux appelants immédiats.** `can_fulfil()` et `picking_list()` défendent tous les deux contre le retour `None` de `find_by_sku()` (`inventory/orders.py:9-11`, `inventory/orders.py:32-33`).
 
 ## Dettes techniques
