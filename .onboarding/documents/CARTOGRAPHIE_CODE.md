@@ -174,7 +174,7 @@ def picking_list(lines):
 
 ### `tests/test_orders.py` (93 lignes)
 
-**Portée** : Couvre `inventory/orders.py` en intégralité.
+**Portée** : Couvre `inventory/orders.py` partiellement (10 tests pour `picking_list()`, aucun pour `can_fulfil()`).
 
 **Suite** : Classe `TestPickingList` (unittest) avec 10 méthodes testant `picking_list()`.
 
@@ -194,7 +194,7 @@ def picking_list(lines):
 | `test_meme_article_casse_differente_cumul_respecte` | Casse insensible pour allocation | "AX-100" + "ax-100" → cumul de 6+6 > 10 → 2e exclue |
 
 **Couverture** :
-- ✓ `picking_list()` : couverture partielle (10 tests : mono-ligne, allocation cumulée, casse, surallocation, signalement, pénuries ; les cas multi-zones 3.1.b-d et limites 3.2.a,c ne sont pas testés).
+- ⚠ `picking_list()` : couverture partielle (10 tests couvrent allocation cumulée, surallocation, casse insensible, pénuries, demandes nulles/négatives, SKU inconnus ; les cas multi-zones (3.1.b-d) et plusieurs cas limites (3.2.a, 3.2.c) ne sont pas testés).
 - ✗ `can_fulfil()` : aucun test direct ni indirect (utilisable au niveau client, pas validée par la suite actuelle).
 
 ---
@@ -244,7 +244,7 @@ inventory/orders.py
 
 **Zones de couverture** :
 - Warehouse : 6 tests couvrent find_by_sku, items_in_zone, available_qty (robustesse et non-negativité).
-- Orders : 10 tests couvrent `picking_list()` en profondeur (allocation, surallocation, multi-lignes, casse).
+- Orders : 10 tests couvrent `picking_list()` partiellement (allocation cumulée, surallocation, multi-lignes, casse insensible ; cases multi-zones et plusieurs limites manquent).
 
 ---
 
@@ -333,7 +333,7 @@ Si ce pilote évolue, les points chauds seront :
 
 **Cohérence code-tests** :
 - ✓ Les 16 tests exécutent le code décrit.
-- ✓ Couverture partielle : `warehouse.py` (6 tests : find_by_sku, items_in_zone, available_qty) + `orders.py` (10 tests : picking_list complet, can_fulfil non testé).
+- ✓ Couverture partielle : `warehouse.py` (6 tests : find_by_sku, items_in_zone, available_qty) + `orders.py` (10 tests : picking_list partiellement — allocation, surallocation, casse, pénuries testés ; multi-zones manquent ; can_fulfil non testé).
 
 **Cohérence code-domaines** :
 - ✓ Deux modules, deux domaines.
@@ -352,5 +352,5 @@ Si ce pilote évolue, les points chauds seront :
   - `available_qty()` garantit une disponibilité ≥ 0 via `max(0, ...)`.
   - `picking_list()` suit l'allocation cumulée par article, signale les pénuries (10 tests).
   - `find_by_sku()` insensible à la casse.
-- **Couverture** : 6 tests warehouse + 10 tests orders = 16 tests au total. `can_fulfil()` sans test direct mais utilisable au niveau client.
+- **Couverture** : 6 tests warehouse + 10 tests orders = 16 tests au total. Couverture de `picking_list()` partielle (allocation, surallocation, casse, pénuries testés ; cas multi-zones et plusieurs limites manquent). `can_fulfil()` sans test direct ni indirect.
 - **Prochaine étape probable** : ajouter une couche HTTP (API REST) ou une persistance (base de données).
