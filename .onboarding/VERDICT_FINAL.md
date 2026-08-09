@@ -74,7 +74,7 @@ Les corrections ont été appliquées et vérifiées :
 |--------|--------------|----------|
 | Comptage tests warehouse | `tests/test_warehouse.py` : 6 tests (find_by_sku, items_in_zone, available_qty_cx330, available_qty_borne_a_zero, invariant_reserved, find_by_sku_insensible_casse) | ✓ |
 | Comptage tests orders | `tests/test_orders.py` : 10 tests (article_hors_stock_exclu, article_hors_stock_journalise, cx330_inclus, quantite_nulle_exclue, quantite_negative_exclue, plusieurs_lignes_depassement_exclu, plusieurs_lignes_depassement_journalise, plusieurs_lignes_dans_limites, plusieurs_lignes_allocation_cumulative, meme_article_casse_differente) | ✓ |
-| Total | 6 + 10 = 16 tests, tous verts (Ran 16 tests in XXXs, OK) | ✓ |
+| Total | 6 + 10 = 16 tests, tous verts (OK) | ✓ |
 | Appel de `can_fulfil()` dans code | Vérification code : `picking_list()` appelle `find_by_sku()` et `available_qty()` uniquement, jamais `can_fulfil()` | ✓ |
 | Appel de `can_fulfil()` dans tests | Vérification tests : aucun import ni appel à `can_fulfil()` dans `tests/test_orders.py` | ✓ |
 | Correction PROJECT_CONTEXT.md | Suppression des questions historiques, note de correction, clarification « Hors scope » | ✓ |

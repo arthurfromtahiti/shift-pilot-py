@@ -71,7 +71,7 @@ Le dépôt est complet et auto-contenu :
 Aucune roadmap formelle n'est documentée. Les audits et workflows ont identifié des sujets ouverts pour une future évolution :
 
 1. **Orchestrateur de commande** : enchaîner `can_fulfil()` puis `picking_list()` pour une logique complète de vérification + prélèvement.
-2. **Couverture de tests complétée pour `picking_list()`** : tous les cas d'allocation et surallocation sont testés (10 tests). `can_fulfil()` reste sans test direct (utilisable au niveau du client, couvert indirectement).
+2. **Couverture de tests complétée pour `picking_list()`** : tous les cas d'allocation et surallocation sont testés (10 tests). `can_fulfil()` reste sans test direct ni indirect (utilisable au niveau du client, pas validée par la suite actuelle).
 3. **Couche d'exposition** : API HTTP ou CLI pour l'accès aux domaines (actuellement : fonctions Python pures seulement).
 4. **Mécanisme de réservation/mise à jour** : permettre l'altération du stock au-delà de la lecture actuelle.
 5. **Persistance** : survie des données entre redémarrages du processus.
