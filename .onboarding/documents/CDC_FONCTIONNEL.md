@@ -9,14 +9,14 @@ Deux domaines métier coexistent dans ce pilote de logistique d'entrepôt :
 1. **Entrepôt-Stock** : référentiel en mémoire de quatre articles (SKU, quantité brute, quantité réservée, zone), avec opérations de consultation et calcul de disponibilité à la vente.
 2. **Préparation-Commande** : opérations dérivées pour décider si une commande peut être honorée et générer une liste de prélèvement, avec allocation cross-article pour éviter la surallocation.
 
-La disponibilité à la vente est toujours non négative (bornée à zéro via `max(0, ...)`), et la génération de liste de prélèvement respècte l'allocation cumulée par article pour garantir la faisabilité.
+La disponibilité à la vente est toujours non négative (bornée à zéro via `max(0, ...)`), et la génération de liste de prélèvement respècte l'allocation cumulée par article en vérifiant la disponibilité et en signalant les pénuries.
 
 ---
 
 ## Contexte métier
 
-**Qui** : une entreprise de distribution.  
-**Quoi** : gérer un stock d'entrepôt et préparer des commandes.  
+**Scenario** : Dans un scenario pédagogique de logistique d'entrepôt, une entreprise de distribution doit gérer un stock en mémoire et préparer des commandes.  
+**Objectif** : gérer un stock d'entrepôt et préparer des commandes.  
 **Contrainte** : vérifier avant chaque prélèvement qu'on dispose de la quantité demandée ; traiter les commandes multi-lignes du même SKU sans surallocation.
 
 Le modèle simplifié en mémoire porte quatre articles distincts, chacun une zone, une quantité, et une quantité réservée par des commandes précédentes. **Invariant fonctionnel respecté** : la disponibilité à la vente (stock moins réservé) ne descend jamais en-dessous de zéro. `available_qty()` la borne via `max(0, item["qty"] - item["reserved"])`. Pour les commandes multi-lignes, `picking_list()` alloue séquentiellement par article et signale les pénuries.

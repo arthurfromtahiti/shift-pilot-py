@@ -154,7 +154,7 @@ Pour chaque workflow :
 
 **Signature actuelle** : `picking_list(lines) → {picks: [dict], skipped: [dict]}`
 
-**État actuel** : **10 tests** couvrent ce workflow complètement dans `test_orders.py`.
+**État actuel** : **10 tests** couvrent ce workflow partiellement dans `test_orders.py` (allocation cumulée, pénuries, cas de casse insensible). Les cas multi-zones (3.1.b-d) et plusieurs cas limites (3.2.a, 3.2.c) ne sont pas testés.
 
 ### 3.1 — Cas nominal
 
