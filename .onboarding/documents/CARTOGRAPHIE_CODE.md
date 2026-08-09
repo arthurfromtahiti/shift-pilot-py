@@ -161,19 +161,22 @@ def picking_list(lines):
 |------|-------|----------|------|
 | `test_find_by_sku()` | 7-9 | Vérifie la recherche : SKU connu retourne un résultat, SKU absent retourne `None`. | ✓ Vert |
 | `test_items_in_zone()` | 11-12 | Vérifie le filtrage : zone "A" contient 2 articles. | ✓ Vert |
-| `test_available_qty_never_negative()` | 14-18 | Vérifie l'invariant : disponibilité ≥ 0. Teste `CX-330` : s'attend à 40, reçoit 40. | ✓ Vert |
+| `test_available_qty_cx330()` | 14-18 | Vérifie l'invariant : `CX-330` (qty=45, reserved=5) → disponible=40. | ✓ Vert |
+| `test_available_qty_borne_a_zero_quand_reserved_superieur_a_qty()` | 20-23 | Vérifie la borne : si reserved > qty, retourne 0. | ✓ Vert |
+| `test_invariant_reserved_ne_depasse_pas_qty_dans_items()` | 25-31 | Vérification d'invariant : aucun article n'a reserved > qty. | ✓ Vert |
+| `test_find_by_sku_insensible_casse()` | 33-37 | Vérifie l'insensibilité à la casse : "ax-100", "Ax-100", "AX-100" retrouvent le même article. | ✓ Vert |
 
 **Couverture** :
-- ✓ `find_by_sku()` : couverture basique (SKU connu/absent).
+- ✓ `find_by_sku()` : couverture basique (SKU connu/absent, insensibilité casse).
 - ✓ `items_in_zone()` : couverture minimale (compte zone A, pas les identités).
-- ✓ `available_qty()` : couverture du non-negativité.
+- ✓ `available_qty()` : couverture du non-negativité et cas normal.
 - ✗ `list_items()` : pas de test.
 
 ### `tests/test_orders.py` (93 lignes)
 
 **Portée** : Couvre `inventory/orders.py` en intégralité.
 
-**Suite** : Classe `TestPickingList` (unittest) avec 10 méthodes testant `picking_list()`.
+**Suite** : Classe `TestPickingList` (unittest) avec 11 méthodes testant `picking_list()`.
 
 **Tests clés** :
 
@@ -191,8 +194,8 @@ def picking_list(lines):
 | `test_meme_article_casse_differente_cumul_respecte` | Casse insensible pour allocation | "AX-100" + "ax-100" → cumul de 6+6 > 10 → 2e exclue |
 
 **Couverture** :
-- ✓ `picking_list()` : couverture complète (multi-lignes, casse, surallocation, signalement).
-- ✗ `can_fulfil()` : pas de test direct (testé indirectement via `picking_list()` ou utilisable au niveau client).
+- ✓ `picking_list()` : couverture complète (11 tests : multi-lignes, casse, surallocation, signalement, pénuries).
+- ✗ `can_fulfil()` : pas de test direct (utilisable au niveau client, couvert indirectement via l'allocation dans `picking_list()`).
 
 ---
 
@@ -279,14 +282,14 @@ python3 -m unittest discover -s tests -t .
 
 **Sortie observée** :
 ```
-................
+.................
 ------
-Ran 16 tests in XXXs
+Ran 17 tests in XXXs
 OK
 ```
 
-- 13 points = 13 tests verts (3 warehouse + 10 orders).
-- Tous les tests passent (la signature de `available_qty()` maintenant retourne `max(0, ...)`).
+- 17 points = 17 tests verts (6 warehouse + 11 orders).
+- Tous les tests passent. `available_qty()` est sécurisée via `max(0, ...)`.
 
 ---
 
@@ -341,12 +344,13 @@ Si ce pilote évolue, les points chauds seront :
 ## Résumé technique pour un futur développeur
 
 - **Stack** : Python 3.12 stdlib, aucun framework, aucune dépendance.
-- **Entrée** : lancer `python3 -m unittest discover -s tests -t .` → 16 tests verts.
+- **Entrée** : lancer `python3 -m unittest discover -s tests -t .` → 17 tests verts.
 - **Cœur** : `inventory/warehouse.py` (4 fonctions : stock, recherche, zone, disponibilité) + `inventory/orders.py` (2 fonctions : vérification, prélèvement).
 - **Data** : 4 articles en dur dans `ITEMS` (stock modifiable).
 - **Architecture** : dépendance unidirectionnelle warehouse → orders, aucune abstraction, aucune persistance.
 - **Points clés** : 
   - `available_qty()` garantit une disponibilité ≥ 0 via `max(0, ...)`.
-  - `picking_list()` suit l'allocation cumulée par article, signale les pénuries.
+  - `picking_list()` suit l'allocation cumulée par article, signale les pénuries (11 tests).
   - `find_by_sku()` insensible à la casse.
+- **Couverture** : 6 tests warehouse + 11 tests orders = 17 tests au total. `can_fulfil()` sans test direct mais utilisable au niveau client.
 - **Prochaine étape probable** : ajouter une couche HTTP (API REST) ou une persistance (base de données).

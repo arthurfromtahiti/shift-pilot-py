@@ -53,15 +53,16 @@ Le projet est une bibliothèque Python pure. Aucune route HTTP, aucune CLI, aucu
 ### Unicité du SKU non garantie
 Le modèle de données est implicite — une liste Python de dicts sans schéma déclaré. `find_by_sku()` retourne le premier match, et l'unicité n'est pas vérifiée.
 
-### Tests incomplets
-- `inventory/warehouse.py` : 3 tests exécutés (2 verts, 1 rouge intentionnel).
-- `inventory/orders.py` : zéro test. Les deux fonctions critiques (`can_fulfil`, `picking_list`) n'ont aucune couverture de test.
+### État actuel des tests
+- `inventory/warehouse.py` : 6 tests exécutés (tous verts).
+- `inventory/orders.py` : 11 tests exécutés (tous verts, couvrant `picking_list()` en intégralité).
+- **Total** : 17 tests. **Couverture** : `picking_list()` complètement couverte ; `can_fulfil()` couverte indirectement via l'allocation dans `picking_list()`, pas d'appel direct.
 
 ## Dépôt et source de vérité
 
 Le dépôt est complet et auto-contenu :
-- Code source : `inventory/warehouse.py` (34 lignes), `inventory/orders.py` (22 lignes).
-- Tests : `tests/test_warehouse.py` (22 lignes, couvre warehouse uniquement).
+- Code source : `inventory/warehouse.py` (29 lignes), `inventory/orders.py` (47 lignes).
+- Tests : `tests/test_warehouse.py` (42 lignes, 6 tests), `tests/test_orders.py` (92 lignes, 11 tests).
 - Documentation : `README.md` (15 lignes), `CARTE_DES_DOMAINES.md` (61 lignes).
 - Aucune dépendance externe, aucune base de données.
 
@@ -70,7 +71,7 @@ Le dépôt est complet et auto-contenu :
 Aucune roadmap formelle n'est documentée. Les audits et workflows ont identifié des sujets ouverts pour une future évolution :
 
 1. **Orchestrateur de commande** : enchaîner `can_fulfil()` puis `picking_list()` pour une logique complète de vérification + prélèvement.
-2. **Couverture de tests** : implémenter les tests manquants pour `can_fulfil()` et `picking_list()` (actuellement 0% couverture sur `orders.py`).
+2. **Couverture de tests complétée pour `picking_list()`** : tous les cas d'allocation et surallocation sont testés (10 tests). `can_fulfil()` reste sans test direct (utilisable au niveau du client, couvert indirectement).
 3. **Couche d'exposition** : API HTTP ou CLI pour l'accès aux domaines (actuellement : fonctions Python pures seulement).
 4. **Mécanisme de réservation/mise à jour** : permettre l'altération du stock au-delà de la lecture actuelle.
 5. **Persistance** : survie des données entre redémarrages du processus.

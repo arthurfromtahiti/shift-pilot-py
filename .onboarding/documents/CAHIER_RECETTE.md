@@ -6,7 +6,7 @@
 
 Ce cahier de recette énumère les cas de test **dérivés directement des workflows métier** documentés en étape 2. Chaque cas est tracé à un workflow, à une fonction code, et à un objectif métier. Le but est de guider la création d'une suite de test complète couvrant tous les domaines.
 
-**État actuel** : 13 tests existent et passent. `tests/test_warehouse.py` contient 3 tests (warehouse), et `tests/test_orders.py` contient 10 tests (orders picking_list). La couverture fonctionnelle est **partielle** : le domaine entrepôt-stock a des tests sur `find_by_sku()` et `items_in_zone()`, mais le domaine préparation-commande manque de tests directs sur `can_fulfil()` (voir section 2, État actuel).
+**État actuel** : 17 tests existent et passent. `tests/test_warehouse.py` contient 6 tests (warehouse), et `tests/test_orders.py` contient 11 tests (orders picking_list). La couverture fonctionnelle est **partielle** : le domaine entrepôt-stock a des tests sur `find_by_sku()` et `items_in_zone()`, mais le domaine préparation-commande manque de tests directs sur `can_fulfil()` (voir section 2, État actuel).
 
 ---
 
@@ -154,7 +154,7 @@ Pour chaque workflow :
 
 **Signature actuelle** : `picking_list(lines) → {picks: [dict], skipped: [dict]}`
 
-**État actuel** : **10 tests** couvrent ce workflow complètement dans `test_orders.py`.
+**État actuel** : **11 tests** couvrent ce workflow complètement dans `test_orders.py`.
 
 ### 3.1 — Cas nominal
 
@@ -213,14 +213,14 @@ Pour chaque workflow :
 ## État de la couverture de test actuelle
 
 ### Domaine entrepôt-stock
-- ✓ `find_by_sku` : partiellement couvert (SKU connu/absent, pas robustesse).
-- ✓ `items_in_zone` : partiellement couvert (zone A, pas identités, pas zone absente).
-- ✓ `available_qty` : partiellement couvert (bug volontaire, pas les cas normaux).
+- ✓ `find_by_sku` : couvert (SKU connu/absent, insensibilité à la casse).
+- ✓ `items_in_zone` : partiellement couvert (zone A, pas zone absente).
+- ✓ `available_qty` : couvert (non-negativité, cas normaux).
 - ✗ `list_items` : pas de test.
 
 ### Domaine préparation-commande
-- ✗ `can_fulfil` : **aucun test**.
-- ✗ `picking_list` : **aucun test**.
+- ✗ `can_fulfil` : **aucun test direct** (couvert indirectement via `picking_list()`).
+- ✓ `picking_list` : **11 tests couvrant allocation, surallocation, casse insensible, pénuries**.
 
 ---
 
