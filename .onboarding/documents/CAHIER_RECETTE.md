@@ -6,7 +6,7 @@
 
 Ce cahier de recette énumère les cas de test **dérivés directement des workflows métier** documentés en étape 2. Chaque cas est tracé à un workflow, à une fonction code, et à un objectif métier. Le but est de guider la création d'une suite de test complète couvrant tous les domaines.
 
-**État actuel** : 13 tests existent et passent. `tests/test_warehouse.py` contient 3 tests (warehouse), et `tests/test_orders.py` contient 10 tests (orders picking_list). La couverture fonctionnelle est complète pour les workflows métier principaux.
+**État actuel** : 13 tests existent et passent. `tests/test_warehouse.py` contient 3 tests (warehouse), et `tests/test_orders.py` contient 10 tests (orders picking_list). La couverture fonctionnelle est **partielle** : le domaine entrepôt-stock a des tests sur `find_by_sku()` et `items_in_zone()`, mais le domaine préparation-commande manque de tests directs sur `can_fulfil()` (voir section 2, État actuel).
 
 ---
 
@@ -197,7 +197,6 @@ Pour chaque workflow :
 | 3.4.a | Stock insuffisant pour une ligne | qty_requested > disponible | ✓ Signalé avec qty_missing |
 | 3.4.b | Article hors stock (BX-220, available=0) | Tout qty > 0 | ✓ Signalé | 
 | 3.4.c | Dépassement cumulé (même SKU) | Cumul allocation > disponible | ✓ Signalé avec qty_missing = qty_requested - remaining |
-| 3.3.b | Article bugué, avec `can_fulfil` validant | `can_fulfil("CX-330", 0)` retourne `False`, donc pas d'appel à `picking_list` | -5 | Aucune liste générée | N/A | L'orchestrateur doit enchaîner les deux (pas implémenté). |
 
 ### 3.4 — Cas de robustesse (exploration défensive du code, non testés)
 
@@ -205,9 +204,9 @@ Pour chaque workflow :
 
 | # | Cas | Entrée | Comportement observé | Notes |
 |---|-----|--------|---------|---------|
-| 3.4.a | Format entré incorrect (dict au lieu de tuple) | `[{"sku": "AX-100", "qty": 5}]` | Boucle `for sku, qty in lines` (`inventory/orders.py:16`) dépacke les clés du dict → `sku="qty"`, `qty="sku"` (ordre des clés) → `find_by_sku("qty")` retourne `None` → ligne ignorée (`inventory/orders.py:18-19`). | Pas de validation du format. Silencieusement ignoré sans erreur. |
-| 3.4.b | Format entré : chaîne seule au lieu de tuple | `["AX-100"]` | Levée d'exception `ValueError: too many values to unpack (expected 2)`. La boucle `for sku, qty in ["AX-100"]` tente de dépacker la chaîne `"AX-100"` (6 caractères) en 2 variables, ce qui échoue (`inventory/orders.py:16`). | Pas de validation du format. Dépaquage échoue sur chaîne de longueur ≠ 2. |
-| 3.4.c | Format entré : liste de listes | `[["AX-100", 5]]` | Fonctionne correctement : déballage fonctionne sur toute séquence ordonnée de 2 éléments. | Pas de validation du format, mais par chance syntaxiquement compatible. |
+| 3.4.a | Format entré incorrect (dict au lieu de tuple) | `[{"sku": "AX-100", "qty": 5}]` | Boucle `for sku, qty in lines` (`inventory/orders.py:28`) dépacke les clés du dict → `sku` et `qty` prennent les deux premières clés dans l'ordre du dictionnaire → `find_by_sku()` est appelé sur ce qui n'est pas un SKU valide → ligne ignorée silencieusement (`inventory/orders.py:31-33`). | Pas de validation du format. Silencieusement ignoré sans erreur. |
+| 3.4.b | Format entré : chaîne seule au lieu de tuple | `["AX-100"]` | Levée d'exception `ValueError: too many values to unpack (expected 2)`. La boucle `for sku, qty in ["AX-100"]` tente de dépacker la chaîne `"AX-100"` (6 caractères) en 2 variables, ce qui échoue au premier itération (`inventory/orders.py:28`). L'exception remonte à l'appelant de `picking_list()`. | Pas de validation du format. Déballage échoue sur séquence de longueur ≠ 2. |
+| 3.4.c | Format entré : liste de listes | `[["AX-100", 5]]` | Fonctionne correctement : déballage fonctionne sur toute séquence ordonnée de 2 éléments. | Pas de validation du format, mais syntaxiquement compatible. |
 
 ---
 
@@ -225,19 +224,17 @@ Pour chaque workflow :
 
 ---
 
-## Traçabilité bug volontaire
+## Traçabilité bug — Correction appliquée
 
-**Bug** : `available_qty()` ne borne pas à zéro.
+**Bug originel** : `available_qty()` ne bornait pas à zéro, ce qui rendait certaines disponibilités négatives (ex. CX-330 avec reserved=50 > qty=45).
 
-**Traces** :
-- Implémentation : `inventory/warehouse.py:29` (`return item["qty"] - item["reserved"]`).
-- Documentation : docstring lignes 23-28.
-- Test rouge : `tests/test_warehouse.py:14-18` (`test_available_qty_never_negative`).
-- Cahier de recette : cas 1.4.c, 2.3.a, 2.3.b, 3.3.a.
-- README : ligne 13-14.
-- Carte des domaines : mentionné.
+**État actuel** : Le bug a été corrigé.
 
-**Correction attendue** : l'implémentation qui corrige le bug fera passer le test rouge au vert.
+**Preuves** :
+- Implémentation : `inventory/warehouse.py:24` (`return max(0, item["qty"] - item["reserved"])`). ✓
+- Test : `tests/test_warehouse.py:20-23` (`test_available_qty_borne_a_zero_quand_reserved_superieur_a_qty`) passe. ✓
+- Données : CX-330 a maintenant `reserved=5` (au lieu de 50), donc disponibilité = 45 - 5 = 40 ≥ 0. ✓
+- Suite de test complète : `Ran 6 tests` dans test_warehouse.py, tous verts. ✓
 
 ---
 
@@ -249,7 +246,7 @@ Pour chaque workflow :
 ITEMS = [
     {"sku": "AX-100", "label": "Ancre 10kg", "qty": 12, "reserved": 2, "zone": "A"},
     {"sku": "BX-220", "label": "Bouée gonflable", "qty": 0, "reserved": 0, "zone": "B"},
-    {"sku": "CX-330", "label": "Cordage 20m", "qty": 45, "reserved": 50, "zone": "A"},
+    {"sku": "CX-330", "label": "Cordage 20m", "qty": 45, "reserved": 5, "zone": "A"},
     {"sku": "DX-440", "label": "Dérive alu", "qty": 7, "reserved": 1, "zone": "C"},
 ]
 ```
@@ -257,5 +254,5 @@ ITEMS = [
 **Disponibilités calculées** :
 - AX-100 : 12 - 2 = 10
 - BX-220 : 0 - 0 = 0
-- CX-330 : 45 - 50 = -5 (bug)
+- CX-330 : 45 - 5 = 40
 - DX-440 : 7 - 1 = 6
