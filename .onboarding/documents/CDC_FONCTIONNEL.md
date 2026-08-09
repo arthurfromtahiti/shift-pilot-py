@@ -315,6 +315,6 @@ Toutes ces omissions sont documentées comme volontaires dans les audits et ques
   - `inventory/warehouse.py` (29 lignes) : `list_items()`, `find_by_sku()`, `items_in_zone()`, `available_qty()` avec `max(0, ...)`.
   - `inventory/orders.py` (47 lignes) : `can_fulfil()` avec validation `requested <= 0`, `picking_list()` avec allocation cumulée et signalement des pénuries.
 - **Tests courants** :
-  - `tests/test_warehouse.py` (simple, couvre partiellement warehouse).
-  - `tests/test_orders.py` (16 tests, couvre can_fulfil implicitement et picking_list explicitement, incluant multi-lignes, casse, surallocation).
+  - `tests/test_warehouse.py` (6 tests, couvre partiellement warehouse).
+  - `tests/test_orders.py` (10 tests, couvre picking_list explicitement incluant multi-lignes, casse, surallocation ; can_fulfil n'est ni testé directement ni indirectement).
 - **Audits réconciliés** : fonctionnel, données, architecture, testing, sécurité, code hotspots (tous alignés avec le code courant, relecture approuvée).

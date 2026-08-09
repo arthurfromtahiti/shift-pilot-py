@@ -56,7 +56,7 @@ Le modèle de données est implicite — une liste Python de dicts sans schéma 
 ### État actuel des tests
 - `inventory/warehouse.py` : 6 tests exécutés (tous verts).
 - `inventory/orders.py` : 10 tests exécutés (tous verts, couvrant `picking_list()` en intégralité).
-- **Total** : 16 tests. **Couverture** : `picking_list()` complètement couverte ; `can_fulfil()` n'a aucun test direct (pas appelée dans la suite de test, utilisable au niveau du client).
+- **Total** : 16 tests. **Couverture** : `picking_list()` complètement couverte ; `can_fulfil()` n'a aucun test direct ni indirect (pas appelée dans la suite de test ; utilisable au niveau du client, pas validée par la suite actuelle).
 
 ## Dépôt et source de vérité
 
@@ -80,10 +80,9 @@ Aucune roadmap formelle n'est documentée. Les audits et workflows ont identifi�
 
 ## Questions non tranchées
 
-- Le bug `available_qty` est-il prévu pour être corrigé à la fin du pilote, ou rester volontairement cassé ?
-- Le test rouge doit-il rester rouge indéfiniment, ou devenir vert une fois le bug corrigé ?
 - La séparation `warehouse.py / orders.py` est-elle définitive, ou est-elle un découpage exploratoire ?
 - Les zones d'entrepôt (actuellement A, B, C) peuvent-elles évoluer vers des codes multi-caractères (A1, B-12) ? Cela affecte la robustesse du tri lexicographique.
+- **Note historique** : Le bug intentionnel sur `available_qty` (absence de borne inférieure) a été corrigé lors de l'onboarding (implémentation `max(0, ...)`). Les tests assocés passent tous (16 verts).
 
 ## Livrables d'onboarding
 
@@ -91,7 +90,7 @@ Ce pilote marque l'accomplissement de l'étape d'onboarding par :
 - ✓ Carte des domaines complète et validée.
 - ✓ Trois workflows documentés et relus (consultation stock, vérification faisabilité, génération prélèvement).
 - ✓ Audits transverses réalisés (fonctionnel, données, architecture, tests, sécurité, hotspots).
-- ✓ Bug volontaire isolé et documenté, test rouge en place.
+- ✓ Bug volontaire (`available_qty` sans borne inférieure) isolé, corrigé et testé (16 tests verts).
 - ✓ Documents de référence (contexte, CDC, cartographie code, cahier de recette).
 
-**Hors scope d'onboarding** : couche d'exposition (HTTP, CLI), orchestrateur de commande, tests complets sur tous les modules.
+**Hors scope d'onboarding** : couche d'exposition (HTTP, CLI), orchestrateur de commande, couverture de tests complète (notamment `can_fulfil()` non testé directement ; `list_items()` non testé).

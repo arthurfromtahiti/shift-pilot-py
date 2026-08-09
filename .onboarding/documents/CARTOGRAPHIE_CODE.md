@@ -106,7 +106,7 @@ def can_fulfil(sku, requested):
 - Article inexistant traité comme rupture.
 - Disponibilité toujours ≥ 0 (grâce à `max()` dans `available_qty()`).
 
-**Tests couvrant cette fonction** : couverte implicitement par `test_orders.py`, bien qu'aucun test ne l'appelle directement (elle est appelée indirectement par `picking_list()` ou utilisable au niveau du client).
+**Tests couvrant cette fonction** : aucun test direct ni indirect dans la suite actuelle. `picking_list()` n'appelle pas `can_fulfil()` ; la fonction est utilisable au niveau du client mais n'est pas validée par les tests. Comportements documentés comme règles observées au code, non comme couverture de tests.
 
 #### `picking_list(lines)` (lignes 15-46)
 ```python
@@ -195,7 +195,7 @@ def picking_list(lines):
 
 **Couverture** :
 - ✓ `picking_list()` : couverture complète (10 tests : multi-lignes, casse, surallocation, signalement, pénuries).
-- ✗ `can_fulfil()` : pas de test direct (utilisable au niveau client, couvert indirectement via l'allocation dans `picking_list()`).
+- ✗ `can_fulfil()` : aucun test direct ni indirect (utilisable au niveau client, pas validée par la suite actuelle).
 
 ---
 
